@@ -1,0 +1,9 @@
+debug/
+target/
+*.sqlite3
+
+# Since we're making a binary
+Cargo.lock
+
+# Backup files (rustfmt, vscode, etc)
+**/*.rs.bk
