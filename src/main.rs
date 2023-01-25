@@ -222,7 +222,7 @@ impl eframe::App for MangaUI {
                                     let label = ui
                                         .add(
                                             egui::Label::new(format!(
-                                                "Group #{} ({})",
+                                                "Group #{:03} ({})",
                                                 group.id, group.added_on
                                             ))
                                             .sense(egui::Sense::click()),
