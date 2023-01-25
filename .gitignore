@@ -1,6 +1,8 @@
 debug/
 target/
 *.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 
 # Since we're making a binary
 Cargo.lock
