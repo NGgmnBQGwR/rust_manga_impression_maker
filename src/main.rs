@@ -270,7 +270,7 @@ impl MangaUI {
             .block_on(
                 sqlx::query_as!(
                     MangaGroup,
-                    r"SELECT * FROM manga_groups ORDER BY added_on DESC"
+                    r"SELECT * FROM manga_groups ORDER BY added_on DESC, id DESC"
                 )
                 .fetch_all(&self.db_pool),
             )
