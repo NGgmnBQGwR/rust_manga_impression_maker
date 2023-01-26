@@ -1,11 +1,14 @@
 use anyhow::Context;
 
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
-use crate::types::{MangaGroup, GuiChannelRecv, BackendChannelSend, GuiCommand, BackendCommand, SqlitePool, ImageCacheEntry};
-use crate::manga_ui::MangaUI;
 use crate::cascade_delete::CascadeDelete;
+use crate::manga_ui::MangaUI;
+use crate::types::{
+    BackendChannelSend, BackendCommand, GuiChannelRecv, GuiCommand, ImageCacheEntry, MangaGroup,
+    SqlitePool,
+};
 
 pub struct DataStorage {
     pub manga_groups: Vec<MangaGroup>,
@@ -77,6 +80,10 @@ impl DataStorage {
                 GuiCommand::DeleteMangaGroup(group) => group.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteMangaEntry(entry) => entry.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteImage(_) => todo!(),
+                GuiCommand::CreateNewMangaEntry => todo!(),
+                GuiCommand::GetSelectedGroupInfo(group) => {
+                    self.prepare_and_send_selected_group(group).await
+                }
                 GuiCommand::Exit => {
                     self.exiting = true;
                     break;
@@ -108,5 +115,11 @@ impl DataStorage {
         .unwrap();
 
         dbg!(&self.manga_groups);
+    }
+
+    async fn prepare_and_send_selected_group(&self, group: MangaGroup) {
+        self.backend_send
+            .send(BackendCommand::UpdateGroups(self.manga_groups.clone()))
+            .unwrap();
     }
 }

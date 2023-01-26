@@ -2,12 +2,16 @@ use anyhow::Context;
 use anyhow::Result as AnyResult;
 use eframe::egui::{Color32, Vec2 as EguiVec2};
 
-use crate::types::{MangaGroup, GuiCommand, BackendCommand, SqlitePool, BackendChannelRecv, GuiChannelSend};
+use crate::types::{
+    BackendChannelRecv, BackendCommand, DisplayedMangaEntry, GuiChannelSend, GuiCommand,
+    MangaGroup, SqlitePool,
+};
 
 pub struct MangaUI {
     pub manga_groups: Vec<MangaGroup>,
     pub selected_group: Option<MangaGroup>,
     pub group_to_delete: Option<MangaGroup>,
+    pub manga_entries: Option<Vec<DisplayedMangaEntry>>,
     pub backend_recv: BackendChannelRecv,
     pub gui_send: GuiChannelSend,
 }
@@ -25,91 +29,16 @@ impl eframe::App for MangaUI {
             .resizable(false)
             .exact_width(260.)
             .show(ctx, |ui| {
-                ui.heading("Manga groups:");
-                ui.separator();
-
-                ui.horizontal(|ui| {
-                    if ui.button("Refresh").clicked() {
-                        self.refresh_manga_groups();
-                    }
-                    if ui.button("Add new group").clicked() {
-                        self.create_new_manga_group();
-                    }
-                });
-                ui.separator();
-
-                if self.group_to_delete.is_some() {
-                    let group = self.group_to_delete.clone().unwrap();
-                    egui::Window::new(format!("Delete group #{} ({})", group.id, group.added_on))
-                        .collapsible(false)
-                        .resizable(false)
-                        .show(ctx, |ui| {
-                            ui.horizontal(|ui| {
-                                if ui.button("Cancel").clicked() {
-                                    self.group_to_delete = None;
-                                }
-
-                                if ui.button("Yes!").clicked() {
-                                    self.confirm_delete_group();
-                                }
-                            });
-                        });
-                }
-
-                // FIXME: This variable should not be here, but otherwise I get errors like
-                // "cannot borrow mutably twice" or "cannot borrow immutable as mutable",
-                // because we borrow '&self' for loop, then in the closure we need to borrow
-                // '&mut self' for select_group() call.
-                let mut new_selected_group: Option<MangaGroup> = None;
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    for group in self.manga_groups.iter() {
-                        let (stroke, fill) = if self
-                            .selected_group
-                            .as_ref()
-                            .map_or(false, |x| x.id == group.id)
-                        {
-                            (
-                                (2., Color32::from_rgb(0xA0, 0x10, 0x10)),
-                                Color32::LIGHT_GRAY,
-                            )
-                        } else {
-                            ((2f32, Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
-                        };
-
-                        egui::Frame::none()
-                            .inner_margin(5f32)
-                            .outer_margin(EguiVec2::new(0f32, 2f32))
-                            .stroke(stroke.into())
-                            .fill(fill)
-                            .rounding(5f32)
-                            .show(ui, |ui| {
-                                ui.horizontal(|ui| {
-                                    let label = ui
-                                        .add(
-                                            egui::Label::new(format!(
-                                                "Group #{:03} ({})",
-                                                group.id, group.added_on
-                                            ))
-                                            .sense(egui::Sense::click()),
-                                        )
-                                        .on_hover_cursor(egui::CursorIcon::PointingHand);
-                                    if label.clicked() {
-                                        new_selected_group = Some((*group).clone());
-                                    }
-
-                                    let button = egui::Button::new("🗑").fill(Color32::LIGHT_RED);
-                                    if ui.add(button).clicked() {
-                                        self.group_to_delete = Some((*group).clone());
-                                    }
-                                })
-                            });
-                    }
-                });
-
-                if new_selected_group.is_some() {
-                    self.select_group(new_selected_group.unwrap());
-                }
+                self.draw_manga_groups_panel(ctx, ui);
             });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.draw_central_manga_entries_panel(ctx, ui);
+        });
+
+        if self.group_to_delete.is_some() {
+            self.draw_group_delete_confirm(ctx);
+        }
 
         egui::Window::new("🔧 Settings")
             .vscroll(true)
@@ -135,7 +64,16 @@ impl MangaUI {
     }
 
     fn select_group(&mut self, group: MangaGroup) {
+        if self.selected_group.is_none() {
+            return;
+        }
+
         self.selected_group = Some(group);
+        self.gui_send
+            .send(GuiCommand::GetSelectedGroupInfo(
+                self.selected_group.clone().unwrap(),
+            ))
+            .unwrap();
         dbg!(&self.selected_group);
     }
 
@@ -227,9 +165,104 @@ impl MangaUI {
             dbg!(&cmd);
             match cmd {
                 BackendCommand::UpdateGroups(groups) => self.manga_groups = groups,
+                BackendCommand::UpdateSelectedGroup(entries) => self.manga_entries = Some(entries),
             }
             println!("REPAINT");
             ctx.request_repaint();
         }
+    }
+
+    fn draw_group_delete_confirm(&mut self, ctx: &egui::Context) {
+        if self.group_to_delete.is_some() {
+            let group = self.group_to_delete.clone().unwrap();
+            egui::Window::new(format!("Delete group #{} ({})", group.id, group.added_on))
+                .collapsible(false)
+                .resizable(false)
+                .default_pos((0., 150.))
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.group_to_delete = None;
+                        }
+
+                        if ui.button("Yes!").clicked() {
+                            self.confirm_delete_group();
+                        }
+                    });
+                });
+        }
+    }
+
+    fn draw_manga_groups_panel(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+        ui.heading(format!("Manga groups ({} total):", self.manga_groups.len()));
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            if ui.button("🔄 Refresh").clicked() {
+                self.refresh_manga_groups();
+            }
+            if ui.button("➕ Add new group").clicked() {
+                self.create_new_manga_group();
+            }
+            if ui.button("📥 Export").clicked() {}
+        });
+        ui.separator();
+
+        // FIXME: This variable should not be here, but otherwise I get errors like
+        // "cannot borrow mutably twice" or "cannot borrow immutable as mutable",
+        // because we borrow '&self' for loop, then in the closure we need to borrow
+        // '&mut self' for select_group() call.
+        let mut new_selected_group: Option<MangaGroup> = None;
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for group in self.manga_groups.iter() {
+                let (stroke, fill) = if self
+                    .selected_group
+                    .as_ref()
+                    .map_or(false, |x| x.id == group.id)
+                {
+                    (
+                        (2., Color32::from_rgb(0xA0, 0x10, 0x10)),
+                        Color32::LIGHT_GRAY,
+                    )
+                } else {
+                    ((2f32, Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
+                };
+
+                egui::Frame::none()
+                    .inner_margin(5f32)
+                    .outer_margin(EguiVec2::new(0f32, 2f32))
+                    .stroke(stroke.into())
+                    .fill(fill)
+                    .rounding(5f32)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let label = ui
+                                .add(
+                                    egui::Label::new(format!(
+                                        "Group #{:03} ({})",
+                                        group.id, group.added_on
+                                    ))
+                                    .sense(egui::Sense::click()),
+                                )
+                                .on_hover_cursor(egui::CursorIcon::PointingHand);
+                            if label.clicked() {
+                                new_selected_group = Some((*group).clone());
+                            }
+
+                            let button = egui::Button::new("🗑").fill(Color32::LIGHT_RED);
+                            if ui.add(button).clicked() {
+                                self.group_to_delete = Some((*group).clone());
+                            }
+                        })
+                    });
+            }
+        });
+
+        if new_selected_group.is_some() {
+            self.select_group(new_selected_group.unwrap());
+        }
+    }
+
+    fn draw_central_manga_entries_panel(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
     }
 }

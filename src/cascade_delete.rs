@@ -1,4 +1,4 @@
-use crate::types::{MangaGroup, SqlitePool, MangaEntry, Image};
+use crate::types::{Image, MangaEntry, MangaGroup, SqlitePool};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -17,16 +17,16 @@ impl CascadeDelete for MangaGroup {
         .fetch_all(db)
         .await
         .unwrap();
-        
+
         for entry in group_entries {
             entry.delete_cascade(db).await;
         }
-        
+
         sqlx::query(r"DELETE FROM manga_groups WHERE id = ?")
-        .bind(self.id)
-        .execute(db)
-        .await
-        .unwrap();
+            .bind(self.id)
+            .execute(db)
+            .await
+            .unwrap();
     }
 }
 
@@ -34,19 +34,19 @@ impl CascadeDelete for MangaGroup {
 impl CascadeDelete for MangaEntry {
     async fn delete_cascade(&self, db: &SqlitePool) {
         let manga_images = sqlx::query_as!(Image, r"SELECT * FROM images WHERE manga = ?", self.id)
-        .fetch_all(db)
-        .await
-        .unwrap();
-        
+            .fetch_all(db)
+            .await
+            .unwrap();
+
         for image in manga_images {
             image.delete_cascade(db).await;
         }
-        
+
         sqlx::query(r"DELETE FROM manga_entries WHERE id = ?")
-        .bind(self.id)
-        .execute(db)
-        .await
-        .unwrap();
+            .bind(self.id)
+            .execute(db)
+            .await
+            .unwrap();
     }
 }
 

@@ -26,23 +26,39 @@ pub struct Image {
     pub id: i64,
 }
 
+#[derive(Debug)]
 pub struct ImageCacheEntry {
     pub file_contents: Vec<u8>,
     pub thumbnail: Vec<u8>,
 }
-#[derive(Debug)]
 
+#[derive(Debug)]
+pub struct DisplayedMangaImage {
+    pub image: Image,
+    pub thumbnail: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct DisplayedMangaEntry {
+    pub entry: MangaEntry,
+    pub thumbnails: Vec<DisplayedMangaImage>,
+}
+
+#[derive(Debug)]
 pub enum GuiCommand {
     UpdateMangaGroups,
     CreateNewMangaGroup,
     GetUpdatedMangaGroups,
+    CreateNewMangaEntry,
     DeleteMangaGroup(MangaGroup),
     DeleteMangaEntry(MangaEntry),
     DeleteImage(Image),
+    GetSelectedGroupInfo(MangaGroup),
     Exit,
 }
 
 #[derive(Debug)]
 pub enum BackendCommand {
     UpdateGroups(Vec<MangaGroup>),
+    UpdateSelectedGroup(Vec<DisplayedMangaEntry>),
 }

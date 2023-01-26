@@ -8,15 +8,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // Hide console window on Windows in release
 
 use anyhow::Result as AnyResult;
-use eframe::egui::{Vec2 as EguiVec2};
+use eframe::egui::Vec2 as EguiVec2;
 
 use data_storage::DataStorage;
 use manga_ui::MangaUI;
 
-mod types;
 mod cascade_delete;
 mod data_storage;
 mod manga_ui;
+mod types;
 
 fn main() -> AnyResult<()> {
     dotenvy::dotenv().expect(".env file not found");
@@ -34,6 +34,7 @@ fn main() -> AnyResult<()> {
         manga_groups: Vec::new(),
         selected_group: Option::None,
         group_to_delete: Option::None,
+        manga_entries: Option::None,
         backend_recv,
         gui_send,
     };
