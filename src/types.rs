@@ -20,14 +20,14 @@ pub struct MangaEntry {
 }
 
 #[derive(Debug, Clone)]
-pub struct Image {
+pub struct MangaImage {
     pub path: String,
     pub manga: i64,
     pub id: i64,
 }
 
 pub struct DisplayedMangaImage {
-    pub image: Image,
+    pub image: MangaImage,
     pub thumbnail: egui::ImageData,
 }
 
@@ -39,10 +39,19 @@ impl std::fmt::Debug for DisplayedMangaImage {
     }
 }
 
-#[derive(Debug)]
 pub struct DisplayedMangaEntry {
     pub entry: MangaEntry,
     pub thumbnails: Vec<DisplayedMangaImage>,
+    pub textures: Vec<egui::TextureHandle>,
+}
+
+impl std::fmt::Debug for DisplayedMangaEntry {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.debug_struct("DisplayedMangaEntry")
+            .field("entry", &self.entry)
+            .field("thumbnails", &self.thumbnails)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -53,8 +62,10 @@ pub enum GuiCommand {
     CreateNewMangaEntry(MangaGroup),
     DeleteMangaGroup(MangaGroup),
     DeleteMangaEntry(MangaEntry),
-    DeleteImage(Image),
+    DeleteImage(MangaImage),
     GetSelectedGroupInfo(MangaGroup),
+    SaveMangaEntry(MangaEntry),
+    SaveAllMangaEntries(Vec<MangaEntry>),
     Exit,
 }
 

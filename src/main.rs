@@ -11,7 +11,7 @@ use anyhow::Result as AnyResult;
 use eframe::egui::Vec2 as EguiVec2;
 
 use data_storage::DataStorage;
-use manga_ui::MangaUI;
+use manga_ui::{MangaUI, UiMessenger};
 
 mod cascade_delete;
 mod data_storage;
@@ -22,7 +22,9 @@ fn main() -> AnyResult<()> {
     dotenvy::dotenv().expect(".env file not found");
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(EguiVec2::new(1200., 800.)),
+        initial_window_size: Some(EguiVec2::new(1100., 800.)),
+        max_window_size: Some(EguiVec2::new(1100., 800.)),
+        min_window_size: Some(EguiVec2::new(1100., 800.)),
         ..Default::default()
     };
 
@@ -36,8 +38,7 @@ fn main() -> AnyResult<()> {
         group_to_delete: Option::None,
         entry_to_delete: Option::None,
         manga_entries: Option::None,
-        backend_recv,
-        gui_send,
+        messenger: UiMessenger { backend_recv, gui_send },
     };
 
     eframe::run_native(

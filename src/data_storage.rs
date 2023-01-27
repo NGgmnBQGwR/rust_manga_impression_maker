@@ -7,7 +7,7 @@ use crate::cascade_delete::CascadeDelete;
 use crate::manga_ui::MangaUI;
 use crate::types::{
     BackendChannelSend, BackendCommand, DisplayedMangaEntry, DisplayedMangaImage, GuiChannelRecv,
-    GuiCommand, Image, MangaEntry, MangaGroup, SqlitePool,
+    GuiCommand, MangaEntry, MangaGroup, MangaImage, SqlitePool,
 };
 
 pub struct DataStorage {
@@ -90,6 +90,13 @@ impl DataStorage {
                     self.exiting = true;
                     break;
                 }
+                GuiCommand::SaveMangaEntry(entry) => self.save_manga_entry(entry).await,
+                GuiCommand::SaveAllMangaEntries(entries) => {
+                    // TODO: should this be rewritten using futures/JoinSet, since this is probably not very performant?
+                    for entry in entries.into_iter() {
+                        self.save_manga_entry(entry).await
+                    }
+                }
             }
         }
     }
@@ -145,8 +152,8 @@ impl DataStorage {
 
         for entry in group_entries.into_iter() {
             let manga_images = sqlx::query_as!(
-                Image,
-                r"SELECT * FROM images WHERE manga = ? ORDER BY id DESC",
+                MangaImage,
+                r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
                 entry.id
             )
             .fetch_all(&self.db_pool)
@@ -157,6 +164,7 @@ impl DataStorage {
             result.push(DisplayedMangaEntry {
                 entry: entry,
                 thumbnails: loaded_images,
+                textures: vec![],
             });
         }
 
@@ -165,7 +173,7 @@ impl DataStorage {
             .unwrap();
     }
 
-    fn cache_and_prepare_images(&mut self, images: &[Image]) -> Vec<DisplayedMangaImage> {
+    fn cache_and_prepare_images(&mut self, images: &[MangaImage]) -> Vec<DisplayedMangaImage> {
         let mut result = Vec::<DisplayedMangaImage>::with_capacity(images.len());
         for image in images {
             if let Ok(file_contents) = std::fs::read(self.cwd.join(&image.path)) {
@@ -196,5 +204,19 @@ impl DataStorage {
             })
         }
         result
+    }
+
+    async fn save_manga_entry(&self, entry: MangaEntry) {
+        sqlx::query_as!(
+            MangaImage,
+            r"UPDATE manga_entries SET name = ?, comment = ?, score = ? WHERE id = ?",
+            entry.name,
+            entry.comment,
+            entry.score,
+            entry.id
+        )
+        .execute(&self.db_pool)
+        .await
+        .unwrap();
     }
 }

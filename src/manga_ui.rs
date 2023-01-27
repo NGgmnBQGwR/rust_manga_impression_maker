@@ -5,8 +5,47 @@ use eframe::egui::{Color32, Vec2 as EguiVec2};
 use crate::types::MangaEntry;
 use crate::types::{
     BackendChannelRecv, BackendCommand, DisplayedMangaEntry, GuiChannelSend, GuiCommand,
-    MangaGroup, SqlitePool,
+    MangaGroup, MangaImage, SqlitePool,
 };
+
+pub struct UiMessenger {
+    pub backend_recv: BackendChannelRecv,
+    pub gui_send: GuiChannelSend,
+}
+
+impl UiMessenger {
+    fn delete_image(&self, image: &MangaImage, selected_group: &MangaGroup) {
+        self.gui_send
+            .send(GuiCommand::DeleteImage(image.clone()))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::GetSelectedGroupInfo(selected_group.clone()))
+            .unwrap();
+    }
+
+    fn save_entry(&self, entry: &DisplayedMangaEntry, selected_group: &MangaGroup) {
+        self.gui_send
+            .send(GuiCommand::SaveMangaEntry(entry.entry.clone()))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::GetSelectedGroupInfo(selected_group.clone()))
+            .unwrap();
+    }
+
+    fn save_all_entries(
+        &self,
+        manga_entries: &Vec<DisplayedMangaEntry>,
+        selected_group: &MangaGroup,
+    ) {
+        let entries = manga_entries.iter().map(|x| x.entry.clone()).collect();
+        self.gui_send
+            .send(GuiCommand::SaveAllMangaEntries(entries))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::GetSelectedGroupInfo(selected_group.clone()))
+            .unwrap();
+    }
+}
 
 pub struct MangaUI {
     pub manga_groups: Vec<MangaGroup>,
@@ -14,13 +53,12 @@ pub struct MangaUI {
     pub group_to_delete: Option<MangaGroup>,
     pub entry_to_delete: Option<MangaEntry>,
     pub manga_entries: Option<Vec<DisplayedMangaEntry>>,
-    pub backend_recv: BackendChannelRecv,
-    pub gui_send: GuiChannelSend,
+    pub messenger: UiMessenger,
 }
 
 impl eframe::App for MangaUI {
     fn on_close_event(&mut self) -> bool {
-        self.gui_send.send(GuiCommand::Exit).unwrap();
+        self.messenger.gui_send.send(GuiCommand::Exit).unwrap();
         true
     }
 
@@ -42,10 +80,34 @@ impl eframe::App for MangaUI {
             self.draw_group_delete_confirm(ctx);
         }
 
+        // TODO: either remove or add toggle, since the output is too noisy
+        ctx.set_debug_on_hover(true);
+        let mut style = (*ctx.style()).clone();
+        style.debug = egui::style::DebugOptions {
+            debug_on_hover: true,
+            show_expand_width: false,
+            show_expand_height: false,
+            show_resize: true,
+            show_interactive_widgets: false,
+            show_blocking_widget: false,
+        };
+        ctx.set_style(style);
+
         egui::Window::new("🔧 Settings")
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
+            });
+        egui::Window::new("🔍 Inspection")
+            .vscroll(true)
+            .show(ctx, |ui| {
+                ctx.inspection_ui(ui);
+            });
+
+        egui::Window::new("📝 Memory")
+            .resizable(false)
+            .show(ctx, |ui| {
+                ctx.memory_ui(ui);
             });
     }
 }
@@ -56,12 +118,14 @@ impl MangaUI {
             return;
         }
 
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::CreateNewMangaEntry(
                 self.selected_group.as_ref().unwrap().clone(),
             ))
             .unwrap();
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::GetSelectedGroupInfo(
                 self.selected_group.as_ref().unwrap().clone(),
             ))
@@ -69,22 +133,31 @@ impl MangaUI {
     }
 
     fn create_new_manga_group(&mut self) {
-        self.gui_send.send(GuiCommand::CreateNewMangaGroup).unwrap();
-        self.gui_send.send(GuiCommand::UpdateMangaGroups).unwrap();
-        self.gui_send
+        self.messenger
+            .gui_send
+            .send(GuiCommand::CreateNewMangaGroup)
+            .unwrap();
+        self.messenger
+            .gui_send
+            .send(GuiCommand::UpdateMangaGroups)
+            .unwrap();
+        self.messenger
+            .gui_send
             .send(GuiCommand::GetUpdatedMangaGroups)
             .unwrap();
     }
 
     fn refresh_manga_groups(&mut self) {
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::GetUpdatedMangaGroups)
             .unwrap();
     }
 
     fn select_group(&mut self, group: MangaGroup) {
         self.selected_group = Some(group);
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::GetSelectedGroupInfo(
                 self.selected_group.clone().unwrap(),
             ))
@@ -130,7 +203,7 @@ impl MangaUI {
         cc.egui_ctx.set_style(style);
         cc.egui_ctx.set_visuals(egui::Visuals::light());
 
-        let backend_recv_clone = self.backend_recv.clone();
+        let backend_recv_clone = self.messenger.backend_recv.clone();
         let ctx_clone = cc.egui_ctx.clone();
         // Since egui only calls update() when something has changed,
         // and we do message processing there, no messages will be processed if
@@ -163,13 +236,18 @@ impl MangaUI {
             self.selected_group = None;
         }
 
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::DeleteMangaGroup(
                 std::mem::replace(&mut self.group_to_delete, None).unwrap(),
             ))
             .unwrap();
-        self.gui_send.send(GuiCommand::UpdateMangaGroups).unwrap();
-        self.gui_send
+        self.messenger
+            .gui_send
+            .send(GuiCommand::UpdateMangaGroups)
+            .unwrap();
+        self.messenger
+            .gui_send
             .send(GuiCommand::GetUpdatedMangaGroups)
             .unwrap();
     }
@@ -181,10 +259,12 @@ impl MangaUI {
         }
 
         let entry = std::mem::replace(&mut self.entry_to_delete, None).unwrap();
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::DeleteMangaEntry(entry))
             .unwrap();
-        self.gui_send
+        self.messenger
+            .gui_send
             .send(GuiCommand::GetSelectedGroupInfo(
                 self.selected_group.as_ref().unwrap().clone(),
             ))
@@ -193,11 +273,30 @@ impl MangaUI {
 
     fn process_backend_commands(&mut self, ctx: &egui::Context) {
         println!("CHECKING");
-        while let Ok(cmd) = self.backend_recv.try_recv() {
+        while let Ok(cmd) = self.messenger.backend_recv.try_recv() {
             dbg!(&cmd);
             match cmd {
                 BackendCommand::UpdateGroups(groups) => self.manga_groups = groups,
-                BackendCommand::UpdateSelectedGroup(entries) => self.manga_entries = Some(entries),
+                BackendCommand::UpdateSelectedGroup(entries) => {
+                    // TODO: replace test images with real images
+                    let entries = entries
+                        .into_iter()
+                        .map(|mut x| {
+                            for i in 1..4 {
+                                x.textures.push(
+                                    // Load the texture only once.
+                                    ctx.load_texture(
+                                        "my-image",
+                                        egui::ColorImage::example(),
+                                        Default::default(),
+                                    ),
+                                )
+                            }
+                            x
+                        })
+                        .collect::<Vec<DisplayedMangaEntry>>();
+                    self.manga_entries = Some(entries);
+                }
             }
             println!("REPAINT");
             ctx.request_repaint();
@@ -335,6 +434,14 @@ impl MangaUI {
             if ui.button("➕ Add new entry").clicked() {
                 self.create_new_manga_entry();
             }
+            if self.manga_entries.is_some() {
+                if ui.button("🖴 Save all").clicked() {
+                    self.messenger.save_all_entries(
+                        self.manga_entries.as_ref().unwrap(),
+                        self.selected_group.as_ref().unwrap(),
+                    );
+                }
+            }
         });
         ui.separator();
 
@@ -349,7 +456,7 @@ impl MangaUI {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             for entry in self.manga_entries.as_mut().unwrap().iter_mut() {
-                let stroke = (2., Color32::from_rgb(0xA0, 0x10, 0x10));
+                let stroke = (2., Color32::from_rgb(0x10, 0x10, 0x10));
                 let fill = Color32::LIGHT_GRAY;
 
                 egui::Frame::none()
@@ -360,17 +467,62 @@ impl MangaUI {
                     .rounding(5f32)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(format!("Entry #{:03}", entry.entry.id));
-                            ui.horizontal(|ui| {
-                                ui.label("Name: ");
-                                ui.add(egui::TextEdit::singleline(&mut entry.entry.name));
+                            ui.vertical_centered_justified(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label(format!("#{:03}", entry.entry.id));
+                                    ui.label("Name: ");
+                                    ui.add(egui::TextEdit::singleline(&mut entry.entry.name));
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Score: ");
+                                    ui.spacing_mut().slider_width = 280.;
+                                    ui.add(egui::Slider::new(&mut entry.entry.score, 1..=10));
+                                });
                             });
 
-                            let delete_button = egui::Button::new("🗑").fill(Color32::LIGHT_RED);
-                            if ui.add(delete_button).clicked() {
-                                self.entry_to_delete = Some(entry.entry.clone());
-                            }
-                        })
+                            ui.horizontal_top(|ui| {
+                                ui.label("Comment: ");
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut entry.entry.comment)
+                                        .desired_rows(3),
+                                );
+                            });
+                            ui.vertical(|ui| {
+                                let delete_button = egui::Button::new("🗑").fill(Color32::LIGHT_RED);
+                                if ui.add(delete_button).clicked() {
+                                    self.entry_to_delete = Some(entry.entry.clone());
+                                }
+                                let save_button = egui::Button::new("🖴").fill(Color32::LIGHT_GREEN);
+                                if ui.add(save_button).clicked() {
+                                    self.messenger
+                                        .save_entry(&entry, self.selected_group.as_ref().unwrap());
+                                }
+                            });
+                        });
+
+                        ui.horizontal_top(|ui| {
+                            ui.label("Images:");
+                            let add_image_button = egui::Button::new("🗀 Add from disk");
+                            if ui.add(add_image_button).clicked() {}
+                            let paste_image_button = egui::Button::new("📋 Paste from clipboard");
+                            if ui.add(paste_image_button).clicked() {}
+                            egui::Grid::new(format!("grid_{}", entry.entry.id)).show(ui, |ui| {
+                                for (texture, image_data) in
+                                    std::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
+                                {
+                                    let image = egui::ImageButton::new(texture, (128., 72.));
+                                    let added_image = ui.add(image).on_hover_ui(|ui| {
+                                        ui.label("Click to delete");
+                                    });
+                                    if added_image.clicked() {
+                                        self.messenger.delete_image(
+                                            &image_data.image,
+                                            self.selected_group.as_ref().unwrap(),
+                                        );
+                                    }
+                                }
+                            });
+                        });
                     });
             }
         });
