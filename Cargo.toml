@@ -16,3 +16,5 @@ chrono = { version = "0.4" }
 dotenvy = { version = "0.15" }
 crossbeam = { version = "0.8" }
 async-trait = { version = "0.1" }
+uuid = { version = "1.2", features = ["v4"] }
+image = { version = "0.24" }

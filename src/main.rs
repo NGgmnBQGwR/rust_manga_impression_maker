@@ -34,6 +34,7 @@ fn main() -> AnyResult<()> {
         manga_groups: Vec::new(),
         selected_group: Option::None,
         group_to_delete: Option::None,
+        entry_to_delete: Option::None,
         manga_entries: Option::None,
         backend_recv,
         gui_send,

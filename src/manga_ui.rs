@@ -2,6 +2,7 @@ use anyhow::Context;
 use anyhow::Result as AnyResult;
 use eframe::egui::{Color32, Vec2 as EguiVec2};
 
+use crate::types::MangaEntry;
 use crate::types::{
     BackendChannelRecv, BackendCommand, DisplayedMangaEntry, GuiChannelSend, GuiCommand,
     MangaGroup, SqlitePool,
@@ -11,6 +12,7 @@ pub struct MangaUI {
     pub manga_groups: Vec<MangaGroup>,
     pub selected_group: Option<MangaGroup>,
     pub group_to_delete: Option<MangaGroup>,
+    pub entry_to_delete: Option<MangaEntry>,
     pub manga_entries: Option<Vec<DisplayedMangaEntry>>,
     pub backend_recv: BackendChannelRecv,
     pub gui_send: GuiChannelSend,
@@ -49,6 +51,23 @@ impl eframe::App for MangaUI {
 }
 
 impl MangaUI {
+    fn create_new_manga_entry(&mut self) {
+        if self.selected_group.is_none() {
+            return;
+        }
+
+        self.gui_send
+            .send(GuiCommand::CreateNewMangaEntry(
+                self.selected_group.as_ref().unwrap().clone(),
+            ))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::GetSelectedGroupInfo(
+                self.selected_group.as_ref().unwrap().clone(),
+            ))
+            .unwrap();
+    }
+
     fn create_new_manga_group(&mut self) {
         self.gui_send.send(GuiCommand::CreateNewMangaGroup).unwrap();
         self.gui_send.send(GuiCommand::UpdateMangaGroups).unwrap();
@@ -64,10 +83,6 @@ impl MangaUI {
     }
 
     fn select_group(&mut self, group: MangaGroup) {
-        if self.selected_group.is_none() {
-            return;
-        }
-
         self.selected_group = Some(group);
         self.gui_send
             .send(GuiCommand::GetSelectedGroupInfo(
@@ -159,6 +174,23 @@ impl MangaUI {
             .unwrap();
     }
 
+    fn confirm_delete_entry(&mut self) {
+        // Sanity check - we can't delete an entry if no entry was selected
+        if self.entry_to_delete.is_none() {
+            return;
+        }
+
+        let entry = std::mem::replace(&mut self.entry_to_delete, None).unwrap();
+        self.gui_send
+            .send(GuiCommand::DeleteMangaEntry(entry))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::GetSelectedGroupInfo(
+                self.selected_group.as_ref().unwrap().clone(),
+            ))
+            .unwrap();
+    }
+
     fn process_backend_commands(&mut self, ctx: &egui::Context) {
         println!("CHECKING");
         while let Ok(cmd) = self.backend_recv.try_recv() {
@@ -187,6 +219,27 @@ impl MangaUI {
 
                         if ui.button("Yes!").clicked() {
                             self.confirm_delete_group();
+                        }
+                    });
+                });
+        }
+    }
+
+    fn draw_entry_delete_confirm(&mut self, ctx: &egui::Context) {
+        if self.entry_to_delete.is_some() {
+            let entry = self.entry_to_delete.clone().unwrap();
+            egui::Window::new(format!("Delete entry #{} ({})", entry.id, entry.name))
+                .collapsible(false)
+                .resizable(false)
+                .default_pos((0., 150.))
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.entry_to_delete = None;
+                        }
+
+                        if ui.button("Yes!").clicked() {
+                            self.confirm_delete_entry();
                         }
                     });
                 });
@@ -264,5 +317,62 @@ impl MangaUI {
     }
 
     fn draw_central_manga_entries_panel(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+        if self.selected_group.is_none() {
+            ui.label("No manga group selected.");
+            return;
+        }
+
+        ui.heading(format!(
+            "Manga entries ({} total):",
+            self.manga_entries.as_ref().map_or(0, |x| x.len())
+        ));
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            if ui.button("🔄 Refresh").clicked() {
+                self.select_group(self.selected_group.as_ref().unwrap().clone());
+            }
+            if ui.button("➕ Add new entry").clicked() {
+                self.create_new_manga_entry();
+            }
+        });
+        ui.separator();
+
+        if self.manga_entries.is_none() {
+            ui.label("No entries.");
+            return;
+        }
+
+        if self.entry_to_delete.is_some() {
+            self.draw_entry_delete_confirm(ctx);
+        }
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for entry in self.manga_entries.as_mut().unwrap().iter_mut() {
+                let stroke = (2., Color32::from_rgb(0xA0, 0x10, 0x10));
+                let fill = Color32::LIGHT_GRAY;
+
+                egui::Frame::none()
+                    .inner_margin(5f32)
+                    .outer_margin(EguiVec2::new(0f32, 2f32))
+                    .stroke(stroke.into())
+                    .fill(fill)
+                    .rounding(5f32)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("Entry #{:03}", entry.entry.id));
+                            ui.horizontal(|ui| {
+                                ui.label("Name: ");
+                                ui.add(egui::TextEdit::singleline(&mut entry.entry.name));
+                            });
+
+                            let delete_button = egui::Button::new("🗑").fill(Color32::LIGHT_RED);
+                            if ui.add(delete_button).clicked() {
+                                self.entry_to_delete = Some(entry.entry.clone());
+                            }
+                        })
+                    });
+            }
+        });
     }
 }

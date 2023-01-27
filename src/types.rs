@@ -10,7 +10,7 @@ pub struct MangaGroup {
     pub id: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MangaEntry {
     pub name: String,
     pub score: i64,
@@ -19,23 +19,24 @@ pub struct MangaEntry {
     pub id: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Image {
     pub path: String,
     pub manga: i64,
     pub id: i64,
 }
 
-#[derive(Debug)]
-pub struct ImageCacheEntry {
-    pub file_contents: Vec<u8>,
-    pub thumbnail: Vec<u8>,
-}
-
-#[derive(Debug)]
 pub struct DisplayedMangaImage {
     pub image: Image,
-    pub thumbnail: Vec<u8>,
+    pub thumbnail: egui::ImageData,
+}
+
+impl std::fmt::Debug for DisplayedMangaImage {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.debug_struct("DisplayedMangaImage")
+            .field("image", &self.image)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -49,7 +50,7 @@ pub enum GuiCommand {
     UpdateMangaGroups,
     CreateNewMangaGroup,
     GetUpdatedMangaGroups,
-    CreateNewMangaEntry,
+    CreateNewMangaEntry(MangaGroup),
     DeleteMangaGroup(MangaGroup),
     DeleteMangaEntry(MangaEntry),
     DeleteImage(Image),
