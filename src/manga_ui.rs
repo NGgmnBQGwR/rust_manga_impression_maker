@@ -550,7 +550,8 @@ impl MangaUI {
                                 for (texture, image_data) in
                                     std::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
                                 {
-                                    let image = egui::ImageButton::new(texture, (128., 72.));
+                                    let image =
+                                        egui::ImageButton::new(texture, texture.size_vec2());
                                     let added_image = ui.add(image).on_hover_ui(|ui| {
                                         ui.label("Click to delete");
                                     });
