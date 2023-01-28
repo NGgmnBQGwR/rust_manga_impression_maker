@@ -34,8 +34,8 @@ pub struct DisplayedMangaImage {
     pub thumbnail: egui::ImageData,
 }
 
-impl std::fmt::Debug for DisplayedMangaImage {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for DisplayedMangaImage {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_struct("DisplayedMangaImage")
             .field("image", &self.image)
             .finish()
@@ -48,8 +48,8 @@ pub struct DisplayedMangaEntry {
     pub textures: Vec<egui::TextureHandle>,
 }
 
-impl std::fmt::Debug for DisplayedMangaEntry {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for DisplayedMangaEntry {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_struct("DisplayedMangaEntry")
             .field("entry", &self.entry)
             .field("thumbnails", &self.thumbnails)

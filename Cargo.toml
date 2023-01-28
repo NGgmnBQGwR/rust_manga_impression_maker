@@ -2,6 +2,10 @@
 name = "manga_impression"
 version = "0.1.0"
 edition = "2021"
+description = "A GUI to help write small impressions of something (biased towards manga)"
+license = "MIT"
+keywords = ["egui", "manga"]
+categories = ["template-engine"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

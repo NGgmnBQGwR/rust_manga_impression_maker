@@ -5,7 +5,7 @@ use eframe::egui::{Color32, Vec2 as EguiVec2};
 use crate::types::MangaEntry;
 use crate::types::{
     BackendChannelRecv, BackendCommand, DisplayedMangaEntry, GuiChannelSend, GuiCommand,
-    MangaGroup, MangaImage, SqlitePool, THUMBNAIL_IMAGE_HEIGHT, THUMBNAIL_IMAGE_WIDTH,
+    MangaGroup, MangaImage, SqlitePool,
 };
 
 pub struct UiMessenger {
@@ -32,11 +32,7 @@ impl UiMessenger {
             .unwrap();
     }
 
-    fn save_all_entries(
-        &self,
-        manga_entries: &Vec<DisplayedMangaEntry>,
-        selected_group: &MangaGroup,
-    ) {
+    fn save_all_entries(&self, manga_entries: &[DisplayedMangaEntry], selected_group: &MangaGroup) {
         let entries = manga_entries.iter().map(|x| x.entry.clone()).collect();
         self.gui_send
             .send(GuiCommand::SaveAllMangaEntries(entries))
@@ -80,7 +76,7 @@ impl eframe::App for MangaUI {
         true
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         self.process_backend_commands(ctx);
 
         egui::SidePanel::left("left_panel_manga_groups")
@@ -170,7 +166,6 @@ impl MangaUI {
                 self.selected_group.clone().unwrap(),
             ))
             .unwrap();
-        dbg!(&self.selected_group);
     }
 
     pub async fn init_db() -> AnyResult<SqlitePool> {
@@ -207,7 +202,7 @@ impl MangaUI {
             .text_styles
             .get_mut(&egui::TextStyle::Body)
             .unwrap()
-            .size = 14f32;
+            .size = 14.;
         cc.egui_ctx.set_style(style);
         cc.egui_ctx.set_visuals(egui::Visuals::light());
 
@@ -247,7 +242,7 @@ impl MangaUI {
         self.messenger
             .gui_send
             .send(GuiCommand::DeleteMangaGroup(
-                std::mem::replace(&mut self.group_to_delete, None).unwrap(),
+                core::mem::replace(&mut self.group_to_delete, None).unwrap(),
             ))
             .unwrap();
         self.messenger
@@ -266,7 +261,7 @@ impl MangaUI {
             return;
         }
 
-        let entry = std::mem::replace(&mut self.entry_to_delete, None).unwrap();
+        let entry = core::mem::replace(&mut self.entry_to_delete, None).unwrap();
         self.messenger
             .gui_send
             .send(GuiCommand::DeleteMangaEntry(entry))
@@ -280,9 +275,7 @@ impl MangaUI {
     }
 
     fn process_backend_commands(&mut self, ctx: &egui::Context) {
-        println!("CHECKING");
         while let Ok(cmd) = self.messenger.backend_recv.try_recv() {
-            dbg!(&cmd);
             match cmd {
                 BackendCommand::UpdateGroups(groups) => self.manga_groups = groups,
                 BackendCommand::UpdateSelectedGroup(entries) => {
@@ -290,12 +283,12 @@ impl MangaUI {
                         entries
                             .into_iter()
                             .map(|mut x| {
-                                for image in x.thumbnails.iter() {
+                                for image in &x.thumbnails {
                                     x.textures.push(ctx.load_texture(
                                         format!("manga_image_{}", image.image.id),
                                         image.thumbnail.clone(),
-                                        Default::default(),
-                                    ))
+                                        egui::TextureOptions::default(),
+                                    ));
                                 }
                                 x
                             })
@@ -306,25 +299,25 @@ impl MangaUI {
                     if self.manga_entries.is_none() {
                         return;
                     }
-                    self.manga_entries
+                    if let Some(entry) = self
+                        .manga_entries
                         .as_mut()
                         .unwrap()
                         .iter_mut()
-                        .find(|mut x| x.entry.id == entry_id)
-                        .map(|entry| {
-                            entry.thumbnails = images;
-                            entry.textures.clear();
-                            for image in entry.thumbnails.iter() {
-                                entry.textures.push(ctx.load_texture(
-                                    format!("manga_image_{}", image.image.id),
-                                    image.thumbnail.clone(),
-                                    Default::default(),
-                                ));
-                            }
-                        });
+                        .find(|x| x.entry.id == entry_id)
+                    {
+                        entry.thumbnails = images;
+                        entry.textures.clear();
+                        for image in &entry.thumbnails {
+                            entry.textures.push(ctx.load_texture(
+                                format!("manga_image_{}", image.image.id),
+                                image.thumbnail.clone(),
+                                egui::TextureOptions::default(),
+                            ));
+                        }
+                    }
                 }
             }
-            println!("REPAINT");
             ctx.request_repaint();
         }
     }
@@ -371,7 +364,7 @@ impl MangaUI {
         }
     }
 
-    fn draw_manga_groups_panel(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn draw_manga_groups_panel(&mut self, _: &egui::Context, ui: &mut egui::Ui) {
         ui.heading(format!("Manga groups ({} total):", self.manga_groups.len()));
         ui.separator();
 
@@ -392,7 +385,7 @@ impl MangaUI {
         // '&mut self' for select_group() call.
         let mut new_selected_group: Option<MangaGroup> = None;
         egui::ScrollArea::vertical().show(ui, |ui| {
-            for group in self.manga_groups.iter() {
+            for group in &self.manga_groups {
                 let (stroke, fill) = if self
                     .selected_group
                     .as_ref()
@@ -403,15 +396,15 @@ impl MangaUI {
                         Color32::LIGHT_GRAY,
                     )
                 } else {
-                    ((2f32, Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
+                    ((2., Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
                 };
 
                 egui::Frame::none()
-                    .inner_margin(5f32)
-                    .outer_margin(EguiVec2::new(0f32, 2f32))
+                    .inner_margin(5.)
+                    .outer_margin(EguiVec2::new(0., 2.))
                     .stroke(stroke.into())
                     .fill(fill)
-                    .rounding(5f32)
+                    .rounding(5.)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             let label = ui
@@ -449,7 +442,7 @@ impl MangaUI {
 
         ui.heading(format!(
             "Manga entries ({} total):",
-            self.manga_entries.as_ref().map_or(0, |x| x.len())
+            self.manga_entries.as_ref().map_or(0, std::vec::Vec::len)
         ));
         ui.separator();
 
@@ -460,13 +453,11 @@ impl MangaUI {
             if ui.button("➕ Add new entry").clicked() {
                 self.create_new_manga_entry();
             }
-            if self.manga_entries.is_some() {
-                if ui.button("🖴 Save all").clicked() {
-                    self.messenger.save_all_entries(
-                        self.manga_entries.as_ref().unwrap(),
-                        self.selected_group.as_ref().unwrap(),
-                    );
-                }
+            if ui.button("🖴 Save all").clicked() && self.manga_entries.is_some() {
+                self.messenger.save_all_entries(
+                    self.manga_entries.as_ref().unwrap(),
+                    self.selected_group.as_ref().unwrap(),
+                );
             }
         });
         ui.separator();
@@ -486,11 +477,11 @@ impl MangaUI {
                 let fill = Color32::LIGHT_GRAY;
 
                 egui::Frame::none()
-                    .inner_margin(5f32)
-                    .outer_margin(EguiVec2::new(0f32, 2f32))
+                    .inner_margin(5.)
+                    .outer_margin(EguiVec2::new(0., 2.))
                     .stroke(stroke.into())
                     .fill(fill)
-                    .rounding(5f32)
+                    .rounding(5.)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.vertical_centered_justified(|ui| {
@@ -521,7 +512,7 @@ impl MangaUI {
                                 let save_button = egui::Button::new("🖴").fill(Color32::LIGHT_GREEN);
                                 if ui.add(save_button).clicked() {
                                     self.messenger
-                                        .save_entry(&entry, self.selected_group.as_ref().unwrap());
+                                        .save_entry(entry, self.selected_group.as_ref().unwrap());
                                 }
                             });
                         });
@@ -538,7 +529,7 @@ impl MangaUI {
                             }
                             egui::Grid::new(format!("grid_{}", entry.entry.id)).show(ui, |ui| {
                                 for (texture, image_data) in
-                                    std::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
+                                    core::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
                                 {
                                     let image =
                                         egui::ImageButton::new(texture, texture.size_vec2());

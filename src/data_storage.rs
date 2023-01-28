@@ -11,7 +11,7 @@ use crate::types::{
     THUMBNAIL_IMAGE_WIDTH,
 };
 
-struct ImageCache {
+pub struct ImageCache {
     pub images_cache: HashMap<i64, Vec<u8>>,
     pub thumbnails_cache: HashMap<i64, egui::ImageData>,
     pub cwd: PathBuf,
@@ -64,7 +64,7 @@ pub struct DataStorage {
     pub manga_groups: Vec<MangaGroup>,
     pub selected_group: Option<MangaGroup>,
     pub cwd: PathBuf,
-    image_cache: ImageCache,
+    pub image_cache: ImageCache,
     pub db_pool: SqlitePool,
     pub backend_send: BackendChannelSend,
     pub gui_recv: GuiChannelRecv,
@@ -72,13 +72,13 @@ pub struct DataStorage {
 }
 
 impl DataStorage {
-    fn start_backend(self, runtime: tokio::runtime::Runtime) {
+    fn start_backend(self, runtime: &tokio::runtime::Runtime) {
         runtime.block_on(self.run());
     }
 
     pub async fn run(mut self) {
         self.update_manga_groups().await;
-        self.send_updated_manga_groups().await;
+        self.send_updated_manga_groups();
 
         loop {
             self.process_gui_commands().await;
@@ -105,7 +105,7 @@ impl DataStorage {
             .context("Unable to get CWD.")
             .unwrap();
 
-        DataStorage {
+        Self {
             manga_groups: Vec::new(),
             selected_group: Option::None,
             cwd: cwd.clone(),
@@ -116,21 +116,21 @@ impl DataStorage {
             image_cache: ImageCache {
                 images_cache: HashMap::with_capacity(100),
                 thumbnails_cache: HashMap::with_capacity(100),
-                cwd: cwd.clone(),
+                cwd,
             },
         }
-        .start_backend(runtime);
+        .start_backend(&runtime);
     }
 
     async fn process_gui_commands(&mut self) {
         while let Ok(cmd) = self
             .gui_recv
-            .recv_timeout(std::time::Duration::from_millis(500))
+            .recv_timeout(core::time::Duration::from_millis(500))
         {
             match cmd {
                 GuiCommand::UpdateMangaGroups => self.update_manga_groups().await,
                 GuiCommand::CreateNewMangaGroup => self.create_new_manga_group().await,
-                GuiCommand::GetUpdatedMangaGroups => self.send_updated_manga_groups().await,
+                GuiCommand::GetUpdatedMangaGroups => self.send_updated_manga_groups(),
                 GuiCommand::DeleteMangaGroup(group) => group.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteMangaEntry(entry) => entry.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteImage(image) => {
@@ -146,21 +146,21 @@ impl DataStorage {
                 GuiCommand::SaveMangaEntry(entry) => self.save_manga_entry(entry).await,
                 GuiCommand::SaveAllMangaEntries(entries) => {
                     // TODO: should this be rewritten using futures/JoinSet, since this is probably not very performant?
-                    for entry in entries.into_iter() {
-                        self.save_manga_entry(entry).await
+                    for entry in entries {
+                        self.save_manga_entry(entry).await;
                     }
                 }
                 GuiCommand::AddImageFromDisk(entry) => self.add_image_from_disk(entry).await,
                 GuiCommand::AddImageFromClipboard(entry) => {
-                    self.add_image_from_clipboard(entry).await
+                    self.add_image_from_clipboard(entry).await;
                 }
                 GuiCommand::UpdateEntryImages(entry) => {
-                    self.send_manga_entry_images(entry.id).await
+                    self.send_manga_entry_images(entry.id).await;
                 }
             }
         }
     }
-    async fn send_updated_manga_groups(&self) {
+    fn send_updated_manga_groups(&self) {
         self.backend_send
             .send(BackendCommand::UpdateGroups(self.manga_groups.clone()))
             .unwrap();
@@ -194,8 +194,6 @@ impl DataStorage {
         .fetch_all(&self.db_pool)
         .await
         .unwrap();
-
-        dbg!(&self.manga_groups);
     }
 
     async fn send_selected_group(&mut self, group: MangaGroup) {
@@ -210,7 +208,7 @@ impl DataStorage {
         .await
         .unwrap();
 
-        for entry in group_entries.into_iter() {
+        for entry in group_entries {
             let manga_images = sqlx::query_as!(
                 MangaImage,
                 r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
@@ -221,7 +219,7 @@ impl DataStorage {
             .unwrap();
 
             result.push(DisplayedMangaEntry {
-                entry: entry,
+                entry,
                 thumbnails: manga_images
                     .iter()
                     .map(|manga_image| self.image_cache.get_image_data(manga_image))
@@ -261,17 +259,13 @@ impl DataStorage {
         .manga_group;
 
         let relative_image_path = {
-            let relative_folder_path = format!("media/{}", manga_group.to_string());
+            let relative_folder_path = format!("media/{manga_group}");
             let full_folder_path = self.cwd.join(&relative_folder_path);
             if !full_folder_path.exists() {
                 std::fs::create_dir_all(full_folder_path).unwrap();
             }
 
-            format!(
-                "{}/{}.jpg",
-                relative_folder_path,
-                uuid::Uuid::new_v4().to_string()
-            )
+            format!("{}/{}.jpg", relative_folder_path, uuid::Uuid::new_v4())
         };
         let full_image_path = self.cwd.join(&relative_image_path);
 
@@ -316,15 +310,15 @@ impl DataStorage {
 
     async fn add_image_from_clipboard(&mut self, entry: MangaEntry) {
         let mut clipboard = arboard::Clipboard::new().unwrap();
-        let image = clipboard.get_image();
-        if image.is_err() {
+        let image_result = clipboard.get_image();
+        if image_result.is_err() {
             return;
         }
-        let image = image.unwrap();
+        let image = image_result.unwrap();
 
         let buffer = image::ImageBuffer::from_raw(
-            image.width as u32,
-            image.height as u32,
+            u32::try_from(image.width).unwrap(),
+            u32::try_from(image.height).unwrap(),
             image.bytes.into_owned(),
         )
         .unwrap();
