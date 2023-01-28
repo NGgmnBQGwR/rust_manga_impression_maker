@@ -23,9 +23,9 @@ fn main() -> AnyResult<()> {
     dotenvy::dotenv().expect(".env file not found");
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(EguiVec2::new(1100., 800.)),
-        max_window_size: Some(EguiVec2::new(1100., 800.)),
-        min_window_size: Some(EguiVec2::new(1100., 800.)),
+        initial_window_size: Some(EguiVec2::new(1110., 800.)),
+        max_window_size: Some(EguiVec2::new(1110., 800.)),
+        min_window_size: Some(EguiVec2::new(1110., 800.)),
         ..Default::default()
     };
 
