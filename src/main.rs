@@ -1,3 +1,4 @@
+// TODO: remove after checking most of them once
 #![warn(
     clippy::all,
     clippy::restriction,
