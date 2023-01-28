@@ -98,35 +98,25 @@ impl eframe::App for MangaUI {
             self.draw_group_delete_confirm(ctx);
         }
 
-        // TODO: either remove or add toggle, since the output is too noisy
-        ctx.set_debug_on_hover(true);
-        let mut style = (*ctx.style()).clone();
-        style.debug = egui::style::DebugOptions {
-            debug_on_hover: true,
-            show_expand_width: false,
-            show_expand_height: false,
-            show_resize: true,
-            show_interactive_widgets: false,
-            show_blocking_widget: false,
-        };
-        ctx.set_style(style);
+        if cfg!(debug_assertions) {
+            ctx.set_debug_on_hover(true);
+            egui::Window::new("🔧 Settings")
+                .vscroll(true)
+                .show(ctx, |ui| {
+                    ctx.settings_ui(ui);
+                });
+            egui::Window::new("🔍 Inspection")
+                .vscroll(true)
+                .show(ctx, |ui| {
+                    ctx.inspection_ui(ui);
+                });
 
-        egui::Window::new("🔧 Settings")
-            .vscroll(true)
-            .show(ctx, |ui| {
-                ctx.settings_ui(ui);
-            });
-        egui::Window::new("🔍 Inspection")
-            .vscroll(true)
-            .show(ctx, |ui| {
-                ctx.inspection_ui(ui);
-            });
-
-        egui::Window::new("📝 Memory")
-            .resizable(false)
-            .show(ctx, |ui| {
-                ctx.memory_ui(ui);
-            });
+            egui::Window::new("📝 Memory")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ctx.memory_ui(ui);
+                });
+        }
     }
 }
 
