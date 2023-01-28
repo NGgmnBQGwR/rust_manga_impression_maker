@@ -396,7 +396,7 @@ impl MangaUI {
         });
         ui.separator();
 
-        // FIXME: This variable should not be here, but otherwise I get errors like
+        // TODO: This variable should not be here, but otherwise I get errors like
         // "cannot borrow mutably twice" or "cannot borrow immutable as mutable",
         // because we borrow '&self' for loop, then in the closure we need to borrow
         // '&mut self' for select_group() call.
