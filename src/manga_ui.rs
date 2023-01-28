@@ -5,7 +5,7 @@ use eframe::egui::{Color32, Vec2 as EguiVec2};
 use crate::types::MangaEntry;
 use crate::types::{
     BackendChannelRecv, BackendCommand, DisplayedMangaEntry, GuiChannelSend, GuiCommand,
-    MangaGroup, MangaImage, SqlitePool,
+    MangaGroup, MangaImage, SqlitePool, THUMBNAIL_IMAGE_HEIGHT, THUMBNAIL_IMAGE_WIDTH,
 };
 
 pub struct UiMessenger {
@@ -14,12 +14,12 @@ pub struct UiMessenger {
 }
 
 impl UiMessenger {
-    fn delete_image(&self, image: &MangaImage, selected_group: &MangaGroup) {
+    fn delete_image(&self, image: &MangaImage, entry: &MangaEntry) {
         self.gui_send
             .send(GuiCommand::DeleteImage(image.clone()))
             .unwrap();
         self.gui_send
-            .send(GuiCommand::GetSelectedGroupInfo(selected_group.clone()))
+            .send(GuiCommand::UpdateEntryImages(entry.clone()))
             .unwrap();
     }
 
@@ -43,6 +43,24 @@ impl UiMessenger {
             .unwrap();
         self.gui_send
             .send(GuiCommand::GetSelectedGroupInfo(selected_group.clone()))
+            .unwrap();
+    }
+
+    fn add_image_from_disk(&self, entry: &MangaEntry) {
+        self.gui_send
+            .send(GuiCommand::AddImageFromDisk(entry.clone()))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::UpdateEntryImages(entry.clone()))
+            .unwrap();
+    }
+
+    fn add_image_from_clipboard(&self, entry: &MangaEntry) {
+        self.gui_send
+            .send(GuiCommand::AddImageFromClipboard(entry.clone()))
+            .unwrap();
+        self.gui_send
+            .send(GuiCommand::UpdateEntryImages(entry.clone()))
             .unwrap();
     }
 }
@@ -278,24 +296,42 @@ impl MangaUI {
             match cmd {
                 BackendCommand::UpdateGroups(groups) => self.manga_groups = groups,
                 BackendCommand::UpdateSelectedGroup(entries) => {
-                    // TODO: replace test images with real images
-                    let entries = entries
-                        .into_iter()
-                        .map(|mut x| {
-                            for i in 1..4 {
-                                x.textures.push(
-                                    // Load the texture only once.
-                                    ctx.load_texture(
-                                        "my-image",
-                                        egui::ColorImage::example(),
+                    self.manga_entries = Some(
+                        entries
+                            .into_iter()
+                            .map(|mut x| {
+                                for image in x.thumbnails.iter() {
+                                    x.textures.push(ctx.load_texture(
+                                        format!("manga_image_{}", image.image.id),
+                                        image.thumbnail.clone(),
                                         Default::default(),
-                                    ),
-                                )
+                                    ))
+                                }
+                                x
+                            })
+                            .collect(),
+                    );
+                }
+                BackendCommand::UpdateThumbnailsForMangaEntry((entry_id, images)) => {
+                    if self.manga_entries.is_none() {
+                        return;
+                    }
+                    self.manga_entries
+                        .as_mut()
+                        .unwrap()
+                        .iter_mut()
+                        .find(|mut x| x.entry.id == entry_id)
+                        .map(|entry| {
+                            entry.thumbnails = images;
+                            entry.textures.clear();
+                            for image in entry.thumbnails.iter() {
+                                entry.textures.push(ctx.load_texture(
+                                    format!("manga_image_{}", image.image.id),
+                                    image.thumbnail.clone(),
+                                    Default::default(),
+                                ));
                             }
-                            x
-                        })
-                        .collect::<Vec<DisplayedMangaEntry>>();
-                    self.manga_entries = Some(entries);
+                        });
                 }
             }
             println!("REPAINT");
@@ -503,9 +539,13 @@ impl MangaUI {
                         ui.horizontal_top(|ui| {
                             ui.label("Images:");
                             let add_image_button = egui::Button::new("🗀 Add from disk");
-                            if ui.add(add_image_button).clicked() {}
+                            if ui.add(add_image_button).clicked() {
+                                self.messenger.add_image_from_disk(&entry.entry);
+                            }
                             let paste_image_button = egui::Button::new("📋 Paste from clipboard");
-                            if ui.add(paste_image_button).clicked() {}
+                            if ui.add(paste_image_button).clicked() {
+                                self.messenger.add_image_from_clipboard(&entry.entry);
+                            }
                             egui::Grid::new(format!("grid_{}", entry.entry.id)).show(ui, |ui| {
                                 for (texture, image_data) in
                                     std::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
@@ -515,10 +555,8 @@ impl MangaUI {
                                         ui.label("Click to delete");
                                     });
                                     if added_image.clicked() {
-                                        self.messenger.delete_image(
-                                            &image_data.image,
-                                            self.selected_group.as_ref().unwrap(),
-                                        );
+                                        self.messenger
+                                            .delete_image(&image_data.image, &entry.entry);
                                     }
                                 }
                             });

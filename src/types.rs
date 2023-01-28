@@ -4,6 +4,9 @@ pub type GuiChannelRecv = crossbeam::channel::Receiver<GuiCommand>;
 pub type BackendChannelSend = crossbeam::channel::Sender<BackendCommand>;
 pub type BackendChannelRecv = crossbeam::channel::Receiver<BackendCommand>;
 
+pub const THUMBNAIL_IMAGE_WIDTH: u32 = 128;
+pub const THUMBNAIL_IMAGE_HEIGHT: u32 = 72;
+
 #[derive(Debug, Clone)]
 pub struct MangaGroup {
     pub added_on: chrono::NaiveDateTime,
@@ -55,6 +58,8 @@ impl std::fmt::Debug for DisplayedMangaEntry {
 }
 
 #[derive(Debug)]
+
+// TODO: trim down parameters from struct to a single id?
 pub enum GuiCommand {
     UpdateMangaGroups,
     CreateNewMangaGroup,
@@ -66,6 +71,9 @@ pub enum GuiCommand {
     GetSelectedGroupInfo(MangaGroup),
     SaveMangaEntry(MangaEntry),
     SaveAllMangaEntries(Vec<MangaEntry>),
+    AddImageFromDisk(MangaEntry),
+    UpdateEntryImages(MangaEntry),
+    AddImageFromClipboard(MangaEntry),
     Exit,
 }
 
@@ -73,4 +81,5 @@ pub enum GuiCommand {
 pub enum BackendCommand {
     UpdateGroups(Vec<MangaGroup>),
     UpdateSelectedGroup(Vec<DisplayedMangaEntry>),
+    UpdateThumbnailsForMangaEntry((i64, Vec<DisplayedMangaImage>)),
 }

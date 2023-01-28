@@ -7,16 +7,65 @@ use crate::cascade_delete::CascadeDelete;
 use crate::manga_ui::MangaUI;
 use crate::types::{
     BackendChannelSend, BackendCommand, DisplayedMangaEntry, DisplayedMangaImage, GuiChannelRecv,
-    GuiCommand, MangaEntry, MangaGroup, MangaImage, SqlitePool,
+    GuiCommand, MangaEntry, MangaGroup, MangaImage, SqlitePool, THUMBNAIL_IMAGE_HEIGHT,
+    THUMBNAIL_IMAGE_WIDTH,
 };
+
+struct ImageCache {
+    pub images_cache: HashMap<i64, Vec<u8>>,
+    pub thumbnails_cache: HashMap<i64, egui::ImageData>,
+    pub cwd: PathBuf,
+}
+
+impl ImageCache {
+    // TODO: replace cloning Vec with &mut, if it's possible
+    fn get_image(&mut self, image: &MangaImage) -> Vec<u8> {
+        self.images_cache
+            .entry(image.id)
+            .or_insert_with(|| std::fs::read(self.cwd.join(&image.path)).unwrap())
+            .clone()
+    }
+
+    fn get_thumbnail(&mut self, image: &MangaImage) -> egui::ImageData {
+        let file_contents = self.get_image(image);
+
+        self.thumbnails_cache
+            .entry(image.id)
+            .or_insert_with(|| {
+                let original_image = image::load_from_memory(&file_contents).unwrap();
+                let resized_image = original_image.resize(
+                    THUMBNAIL_IMAGE_WIDTH,
+                    THUMBNAIL_IMAGE_HEIGHT,
+                    image::imageops::FilterType::Lanczos3,
+                );
+                let image_buffer = resized_image.to_rgba8();
+
+                egui::ColorImage::from_rgba_unmultiplied(
+                    [
+                        usize::try_from(resized_image.width()).unwrap(),
+                        usize::try_from(resized_image.height()).unwrap(),
+                    ],
+                    image_buffer.as_flat_samples().as_slice(),
+                )
+                .into()
+            })
+            .clone()
+    }
+
+    fn get_image_data(&mut self, image: &MangaImage) -> DisplayedMangaImage {
+        DisplayedMangaImage {
+            image: image.clone(),
+            thumbnail: self.get_thumbnail(image),
+        }
+    }
+}
 
 pub struct DataStorage {
     pub manga_groups: Vec<MangaGroup>,
     pub selected_group: Option<MangaGroup>,
     pub group_to_delete: Option<MangaGroup>,
-    pub images_cache: HashMap<String, Vec<u8>>,
-    pub thumbnails_cache: HashMap<String, egui::ImageData>,
     pub cwd: PathBuf,
+    image_cache: ImageCache,
     pub db_pool: SqlitePool,
     pub backend_send: BackendChannelSend,
     pub gui_recv: GuiChannelRecv,
@@ -53,19 +102,24 @@ impl DataStorage {
             .context("Failed to initialize DB pool.")
             .unwrap();
 
+        let cwd = std::env::current_dir()
+            .context("Unable to get CWD.")
+            .unwrap();
+
         DataStorage {
             manga_groups: Vec::new(),
             selected_group: Option::None,
             group_to_delete: Option::None,
-            images_cache: HashMap::with_capacity(100),
-            thumbnails_cache: HashMap::with_capacity(100),
-            cwd: std::env::current_dir()
-                .context("Unable to get CWD.")
-                .unwrap(),
+            cwd: cwd.clone(),
             db_pool,
             backend_send,
             gui_recv,
             exiting: false,
+            image_cache: ImageCache {
+                images_cache: HashMap::with_capacity(100),
+                thumbnails_cache: HashMap::with_capacity(100),
+                cwd: cwd.clone(),
+            },
         }
         .start_backend(runtime);
     }
@@ -81,11 +135,12 @@ impl DataStorage {
                 GuiCommand::GetUpdatedMangaGroups => self.send_updated_manga_groups().await,
                 GuiCommand::DeleteMangaGroup(group) => group.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteMangaEntry(entry) => entry.delete_cascade(&self.db_pool).await,
-                GuiCommand::DeleteImage(_) => todo!(),
-                GuiCommand::CreateNewMangaEntry(group) => self.create_new_manga_entry(group).await,
-                GuiCommand::GetSelectedGroupInfo(group) => {
-                    self.prepare_and_send_selected_group(group).await
+                GuiCommand::DeleteImage(image) => {
+                    image.delete_cascade(&self.db_pool).await;
+                    self.send_manga_entry_images(image.manga).await;
                 }
+                GuiCommand::CreateNewMangaEntry(group) => self.create_new_manga_entry(group).await,
+                GuiCommand::GetSelectedGroupInfo(group) => self.send_selected_group(group).await,
                 GuiCommand::Exit => {
                     self.exiting = true;
                     break;
@@ -96,6 +151,13 @@ impl DataStorage {
                     for entry in entries.into_iter() {
                         self.save_manga_entry(entry).await
                     }
+                }
+                GuiCommand::AddImageFromDisk(entry) => self.add_image_from_disk(entry).await,
+                GuiCommand::AddImageFromClipboard(entry) => {
+                    self.add_image_from_clipboard(entry).await
+                }
+                GuiCommand::UpdateEntryImages(entry) => {
+                    self.send_manga_entry_images(entry.id).await
                 }
             }
         }
@@ -115,7 +177,7 @@ impl DataStorage {
         .await
         .unwrap();
 
-        self.prepare_and_send_selected_group(group).await;
+        self.send_selected_group(group).await;
     }
 
     async fn create_new_manga_group(&mut self) {
@@ -138,7 +200,7 @@ impl DataStorage {
         dbg!(&self.manga_groups);
     }
 
-    async fn prepare_and_send_selected_group(&mut self, group: MangaGroup) {
+    async fn send_selected_group(&mut self, group: MangaGroup) {
         let mut result = Vec::<DisplayedMangaEntry>::with_capacity(50);
 
         let group_entries = sqlx::query_as!(
@@ -160,10 +222,12 @@ impl DataStorage {
             .await
             .unwrap();
 
-            let loaded_images = self.cache_and_prepare_images(&manga_images);
             result.push(DisplayedMangaEntry {
                 entry: entry,
-                thumbnails: loaded_images,
+                thumbnails: manga_images
+                    .iter()
+                    .map(|manga_image| self.image_cache.get_image_data(manga_image))
+                    .collect(),
                 textures: vec![],
             });
         }
@@ -171,39 +235,6 @@ impl DataStorage {
         self.backend_send
             .send(BackendCommand::UpdateSelectedGroup(result))
             .unwrap();
-    }
-
-    fn cache_and_prepare_images(&mut self, images: &[MangaImage]) -> Vec<DisplayedMangaImage> {
-        let mut result = Vec::<DisplayedMangaImage>::with_capacity(images.len());
-        for image in images {
-            if let Ok(file_contents) = std::fs::read(self.cwd.join(&image.path)) {
-                let loaded_image = image::load_from_memory(&file_contents).unwrap();
-                // let size = [loaded_image.width() as _, loaded_image.height() as _];
-                let size = [64, 64];
-                let image_buffer = loaded_image.to_rgba8();
-                let pixels = image_buffer.as_flat_samples();
-                // Ok(egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
-
-                // ui.ctx().load_texture(image, data, Default::default())
-                // });
-                self.images_cache
-                    .entry(image.path.clone())
-                    .or_insert(file_contents);
-                self.thumbnails_cache.entry(image.path.clone()).or_insert(
-                    egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()).into(),
-                );
-            } else {
-                todo!()
-                // let default_image = egui::ColorImage::new([32, 32], egui::Color32::from_rgb(255, 0, 0));
-                // self.thumbnails_cache.entry(image.path.clone()).or_insert_with(|| {
-                // })
-            }
-            result.push(DisplayedMangaImage {
-                image: (*image).clone(),
-                thumbnail: self.thumbnails_cache.get(&image.path).unwrap().clone(),
-            })
-        }
-        result
     }
 
     async fn save_manga_entry(&self, entry: MangaEntry) {
@@ -218,5 +249,110 @@ impl DataStorage {
         .execute(&self.db_pool)
         .await
         .unwrap();
+    }
+
+    async fn add_image_shared(&mut self, entry: MangaEntry, image_file: image::DynamicImage) {
+        // TODO: find a way to avoid making this query just to get group id
+        let manga_group = sqlx::query!(
+            r"SELECT manga_group FROM manga_entries WHERE manga_entries.id = ? LIMIT 1",
+            entry.id
+        )
+        .fetch_one(&self.db_pool)
+        .await
+        .unwrap()
+        .manga_group;
+
+        let relative_image_path = {
+            let relative_folder_path = format!("media/{}", manga_group.to_string());
+            let full_folder_path = self.cwd.join(&relative_folder_path);
+            if !full_folder_path.exists() {
+                std::fs::create_dir_all(full_folder_path).unwrap();
+            }
+
+            format!(
+                "{}/{}.jpg",
+                relative_folder_path,
+                uuid::Uuid::new_v4().to_string()
+            )
+        };
+        let full_image_path = self.cwd.join(&relative_image_path);
+
+        let new_file =
+            &mut std::io::BufWriter::new(std::fs::File::create(&full_image_path).unwrap());
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(new_file, 95);
+
+        encoder
+            .encode(
+                &image_file.to_rgb8(),
+                image_file.width(),
+                image_file.height(),
+                image::ColorType::Rgb8,
+            )
+            .unwrap();
+
+        sqlx::query!(
+            r"INSERT INTO manga_images(path, manga) VALUES(?, ?)",
+            relative_image_path,
+            entry.id,
+        )
+        .execute(&self.db_pool)
+        .await
+        .unwrap();
+    }
+
+    async fn add_image_from_disk(&mut self, entry: MangaEntry) {
+        let image_file_path = rfd::FileDialog::new()
+            .set_title("Select image")
+            .set_directory(&self.cwd)
+            .add_filter("Images", &["jpg", "jpeg", "png"])
+            .pick_file();
+        if image_file_path.is_none() {
+            return;
+        }
+
+        let file_contents = std::fs::read(image_file_path.unwrap()).unwrap();
+        let loaded_image = image::load_from_memory(&file_contents).unwrap();
+
+        self.add_image_shared(entry, loaded_image).await;
+    }
+
+    async fn add_image_from_clipboard(&mut self, entry: MangaEntry) {
+        let mut clipboard = arboard::Clipboard::new().unwrap();
+        let image = clipboard.get_image();
+        if image.is_err() {
+            return;
+        }
+        let image = image.unwrap();
+
+        let buffer = image::ImageBuffer::from_raw(
+            image.width as u32,
+            image.height as u32,
+            image.bytes.into_owned(),
+        )
+        .unwrap();
+        let loaded_image = image::DynamicImage::ImageRgba8(buffer);
+        self.add_image_shared(entry, loaded_image).await;
+    }
+
+    async fn send_manga_entry_images(&mut self, entry_id: i64) {
+        let manga_images = sqlx::query_as!(
+            MangaImage,
+            r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
+            entry_id
+        )
+        .fetch_all(&self.db_pool)
+        .await
+        .unwrap();
+
+        let image_data = manga_images
+            .iter()
+            .map(|image| self.image_cache.get_image_data(image))
+            .collect();
+
+        self.backend_send
+            .send(BackendCommand::UpdateThumbnailsForMangaEntry((
+                entry_id, image_data,
+            )))
+            .unwrap();
     }
 }
