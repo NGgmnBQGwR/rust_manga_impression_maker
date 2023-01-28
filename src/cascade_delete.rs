@@ -55,7 +55,7 @@ impl CascadeDelete for MangaEntry {
 #[async_trait]
 impl CascadeDelete for MangaImage {
     async fn delete_cascade(&self, db: &SqlitePool) {
-        // TODO: Delete file from the disk as well
+        std::fs::remove_file(std::env::current_dir().unwrap().join(&self.path)).unwrap();
 
         sqlx::query!(r"DELETE FROM manga_images WHERE id = ?", self.id)
             .execute(db)
