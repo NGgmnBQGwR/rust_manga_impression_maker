@@ -63,7 +63,6 @@ impl ImageCache {
 pub struct DataStorage {
     pub manga_groups: Vec<MangaGroup>,
     pub selected_group: Option<MangaGroup>,
-    pub group_to_delete: Option<MangaGroup>,
     pub cwd: PathBuf,
     image_cache: ImageCache,
     pub db_pool: SqlitePool,
@@ -109,7 +108,6 @@ impl DataStorage {
         DataStorage {
             manga_groups: Vec::new(),
             selected_group: Option::None,
-            group_to_delete: Option::None,
             cwd: cwd.clone(),
             db_pool,
             backend_send,
