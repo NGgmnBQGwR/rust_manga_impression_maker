@@ -151,6 +151,15 @@ impl MangaUI {
             .unwrap();
     }
 
+    fn export_group(&mut self) {
+        self.messenger
+            .gui_send
+            .send(GuiCommand::ExportGroup(
+                self.selected_group.as_ref().unwrap().clone(),
+            ))
+            .unwrap();
+    }
+
     fn refresh_manga_groups(&mut self) {
         self.messenger
             .gui_send
@@ -375,7 +384,9 @@ impl MangaUI {
             if ui.button("➕ Add new group").clicked() {
                 self.create_new_manga_group();
             }
-            if ui.button("📥 Export").clicked() {}
+            if ui.button("📥 Export").clicked() {
+                self.export_group();
+            }
         });
         ui.separator();
 

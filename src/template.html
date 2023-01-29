@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>{{title}}</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="dist/reveal.css">
+        <link rel="stylesheet" href="dist/theme/white.css" id="theme">
+        <link rel="stylesheet" href="plugin/highlight/monokai.css">
+    </head>
+
+    <style>
+        .reveal h1,
+        .reveal h2,
+        .reveal h3,
+        .reveal h4,
+        .reveal h5,
+        .reveal h6 {
+          text-transform: none;
+          margin: 0px;
+        }
+        :root {
+            --r-block-margin: 10px;
+        }
+        p {
+            font-size: 0.6em;
+        }
+    </style>
+
+    <body>
+        <div class="reveal">
+            <div class="slides">
+                {{sections}}
+                <section>
+                    <h2>THE END</h2>
+                </section>
+            </div>
+        </div>
+
+        <script src="dist/reveal.js"></script>
+        <script src="plugin/highlight/highlight.js"></script>
+        <script>
+            Reveal.initialize({
+                slideNumber: "c/t",
+                plugins: [ RevealHighlight ]
+            });
+        </script>
+    </body>
+</html>

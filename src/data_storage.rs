@@ -157,9 +157,11 @@ impl DataStorage {
                 GuiCommand::UpdateEntryImages(entry) => {
                     self.send_manga_entry_images(entry.id).await;
                 }
+                GuiCommand::ExportGroup(group) => self.export_group(group).await,
             }
         }
     }
+
     fn send_updated_manga_groups(&self) {
         self.backend_send
             .send(BackendCommand::UpdateGroups(self.manga_groups.clone()))
@@ -346,5 +348,32 @@ impl DataStorage {
                 entry_id, image_data,
             )))
             .unwrap();
+    }
+
+    async fn export_group(&self, group: MangaGroup) {
+        let group_entries = sqlx::query_as!(
+            MangaEntry,
+            r"SELECT * FROM manga_entries WHERE manga_group = ? ORDER BY id DESC",
+            group.id
+        )
+        .fetch_all(&self.db_pool)
+        .await
+        .unwrap();
+
+        let mut entries = Vec::with_capacity(group_entries.len());
+        for entry in group_entries {
+            let manga_images = sqlx::query_as!(
+                MangaImage,
+                r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
+                entry.id
+            )
+            .fetch_all(&self.db_pool)
+            .await
+            .unwrap();
+
+            entries.push((entry, manga_images));
+        }
+
+        crate::manga_group_export::MangaGroupExporter::new(group, entries).export_group();
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "manga_impression"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "A GUI to help write small impressions of something (biased towards manga)"
 license = "MIT"
@@ -23,3 +23,4 @@ async-trait = { version = "0.1" }
 uuid = { version = "1.2", features = ["v4"] }
 image = { version = "0.24" }
 arboard = { version = "3.2" }
+handlebars = { version = "3.2" }

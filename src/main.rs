@@ -7,6 +7,7 @@ use eframe::egui::Vec2 as EguiVec2;
 use data_storage::DataStorage;
 use manga_ui::{MangaUI, UiMessenger};
 
+mod manga_group_export;
 mod cascade_delete;
 mod data_storage;
 mod manga_ui;
