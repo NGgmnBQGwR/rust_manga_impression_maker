@@ -213,7 +213,7 @@ impl DataStorage {
         for entry in group_entries {
             let manga_images = sqlx::query_as!(
                 MangaImage,
-                r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
+                r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id ASC",
                 entry.id
             )
             .fetch_all(&self.db_pool)
@@ -331,7 +331,7 @@ impl DataStorage {
     async fn send_manga_entry_images(&mut self, entry_id: i64) {
         let manga_images = sqlx::query_as!(
             MangaImage,
-            r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
+            r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id ASC",
             entry_id
         )
         .fetch_all(&self.db_pool)
@@ -364,7 +364,7 @@ impl DataStorage {
         for entry in group_entries {
             let manga_images = sqlx::query_as!(
                 MangaImage,
-                r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id DESC",
+                r"SELECT * FROM manga_images WHERE manga = ? ORDER BY id ASC",
                 entry.id
             )
             .fetch_all(&self.db_pool)
