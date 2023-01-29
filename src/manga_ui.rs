@@ -196,8 +196,7 @@ impl MangaUI {
             .context("Failed to connect to SQLite DB.")?;
 
         // Run migrations, if necessary
-        let migrator = sqlx::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
-        migrator
+        sqlx::migrate!("./migrations")
             .run(&pool)
             .await
             .context("Error while running migrations.")?;
