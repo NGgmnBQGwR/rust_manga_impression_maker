@@ -538,23 +538,31 @@ impl MangaUI {
                                 self.messenger.add_image_from_clipboard(&entry.entry);
                             }
                         });
-                        egui::ScrollArea::horizontal().show(ui, |ui| {
-                            egui::Grid::new(format!("grid_{}", entry.entry.id)).show(ui, |ui| {
-                                for (texture, image_data) in
-                                    core::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
-                                {
-                                    let image =
-                                        egui::ImageButton::new(texture, texture.size_vec2());
-                                    let added_image = ui.add(image).on_hover_ui(|ui| {
-                                        ui.label("Click to delete");
-                                    });
-                                    if added_image.clicked() {
-                                        self.messenger
-                                            .delete_image(&image_data.image, &entry.entry);
-                                    }
-                                }
+                        egui::ScrollArea::horizontal()
+                            .id_source(format!("images_scroll_area_{}", entry.entry.id))
+                            .show(ui, |ui| {
+                                egui::Grid::new(format!("grid_{}", entry.entry.id)).show(
+                                    ui,
+                                    |ui| {
+                                        for (texture, image_data) in core::iter::zip(
+                                            entry.textures.iter(),
+                                            entry.thumbnails.iter(),
+                                        ) {
+                                            let image = egui::ImageButton::new(
+                                                texture,
+                                                texture.size_vec2(),
+                                            );
+                                            let added_image = ui.add(image).on_hover_ui(|ui| {
+                                                ui.label("Click to delete");
+                                            });
+                                            if added_image.clicked() {
+                                                self.messenger
+                                                    .delete_image(&image_data.image, &entry.entry);
+                                            }
+                                        }
+                                    },
+                                );
                             });
-                        });
                     });
             }
         });
