@@ -43,7 +43,7 @@ fn main() -> AnyResult<()> {
         "Manga impression maker",
         options,
         Box::new(|cc| Box::new(manga_ui.setup(cc))),
-    );
+    ).unwrap();
     backend_thread.join().unwrap();
 
     Ok(())
