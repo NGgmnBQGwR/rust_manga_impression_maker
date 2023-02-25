@@ -537,6 +537,8 @@ impl MangaUI {
                             if ui.add(paste_image_button).clicked() {
                                 self.messenger.add_image_from_clipboard(&entry.entry);
                             }
+                        });
+                        egui::ScrollArea::horizontal().show(ui, |ui| {
                             egui::Grid::new(format!("grid_{}", entry.entry.id)).show(ui, |ui| {
                                 for (texture, image_data) in
                                     core::iter::zip(entry.textures.iter(), entry.thumbnails.iter())
