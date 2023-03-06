@@ -40,6 +40,7 @@ impl<'a> MangaGroupExporter<'a> {
             .register_template_string("image_template", IMAGE_ELEMENT)
             .unwrap();
 
+        entries.sort_by(|a, b| a.0.name.cmp(&b.0.name));
         entries.sort_by(|a, b| a.0.score.cmp(&b.0.score));
 
         Self {
