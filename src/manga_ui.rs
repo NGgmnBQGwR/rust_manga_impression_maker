@@ -98,17 +98,20 @@ impl eframe::App for MangaUI {
             ctx.set_debug_on_hover(true);
             egui::Window::new("🔧 Settings")
                 .vscroll(true)
+                .default_open(false)
                 .show(ctx, |ui| {
                     ctx.settings_ui(ui);
                 });
             egui::Window::new("🔍 Inspection")
                 .vscroll(true)
+                .default_open(false)
                 .show(ctx, |ui| {
                     ctx.inspection_ui(ui);
                 });
 
             egui::Window::new("📝 Memory")
                 .resizable(false)
+                .default_open(false)
                 .show(ctx, |ui| {
                     ctx.memory_ui(ui);
                 });
