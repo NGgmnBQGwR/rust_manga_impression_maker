@@ -58,6 +58,11 @@ impl ImageCache {
             thumbnail: self.get_thumbnail(image),
         }
     }
+
+    fn remove_image(&mut self, image: &MangaImage) {
+        self.images_cache.remove(&image.id).unwrap();
+        self.thumbnails_cache.remove(&image.id).unwrap();
+    }
 }
 
 pub struct DataStorage {
@@ -134,6 +139,7 @@ impl DataStorage {
                 GuiCommand::DeleteMangaGroup(group) => group.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteMangaEntry(entry) => entry.delete_cascade(&self.db_pool).await,
                 GuiCommand::DeleteImage(image) => {
+                    self.image_cache.remove_image(&image);
                     image.delete_cascade(&self.db_pool).await;
                     self.send_manga_entry_images(image.manga).await;
                 }
