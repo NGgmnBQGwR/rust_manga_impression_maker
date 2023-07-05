@@ -1,6 +1,6 @@
 [package]
 name = "manga_impression"
-version = "1.0.5"
+version = "1.0.6"
 edition = "2021"
 description = "A GUI to help write small impressions of something (biased towards manga)"
 license = "MIT"

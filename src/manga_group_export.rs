@@ -7,6 +7,7 @@ static SECTION_ELEMENT: &str = r#"
     <h3>{{title}}</h3>
     <p>{{score}}/10</p>
     <p>{{comment}}</p>
+    {{image_counter}}
     {{image_stack}}
 </section>
 "#;
@@ -101,6 +102,12 @@ impl<'a> MangaGroupExporter<'a> {
         data.insert("title", manga.name.clone());
         data.insert("score", manga.score.to_string());
         data.insert("comment", manga.comment.clone());
+        let images_count = if images.len() > 1 {
+            format!(r#"<div style="font-size:0.3em">{} images</div>"#, images.len())
+        } else {
+            String::new()
+        };
+        data.insert("image_counter", images_count);
         data.insert("image_stack", image_element);
         self.handlebars.render("section_template", &data).unwrap()
     }
