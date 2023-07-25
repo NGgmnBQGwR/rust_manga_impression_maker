@@ -253,7 +253,7 @@ impl MangaUI {
         self.messenger
             .gui_send
             .send(GuiCommand::DeleteMangaGroup(
-                core::mem::replace(&mut self.group_to_delete, None).unwrap(),
+                self.group_to_delete.take().unwrap(),
             ))
             .unwrap();
         self.messenger
@@ -272,7 +272,7 @@ impl MangaUI {
             return;
         }
 
-        let entry = core::mem::replace(&mut self.entry_to_delete, None).unwrap();
+        let entry = self.entry_to_delete.take().unwrap();
         self.messenger
             .gui_send
             .send(GuiCommand::DeleteMangaEntry(entry))
@@ -442,8 +442,8 @@ impl MangaUI {
             }
         });
 
-        if new_selected_group.is_some() {
-            self.select_group(new_selected_group.unwrap());
+        if let Some(new_group) = new_selected_group {
+            self.select_group(new_group);
         }
     }
 
