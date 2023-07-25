@@ -283,10 +283,10 @@ impl DataStorage {
 
         encoder
             .encode(
-                &image_file.to_rgba8(),
+                &image_file.to_rgb8(),
                 image_file.width(),
                 image_file.height(),
-                image::ColorType::Rgba8,
+                image::ColorType::Rgb8,
             )
             .unwrap();
 
