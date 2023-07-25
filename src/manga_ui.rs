@@ -23,12 +23,9 @@ impl UiMessenger {
             .unwrap();
     }
 
-    fn save_entry(&self, entry: &DisplayedMangaEntry, selected_group: &MangaGroup) {
+    fn save_entry(&self, entry: &DisplayedMangaEntry) {
         self.gui_send
             .send(GuiCommand::SaveMangaEntry(entry.entry.clone()))
-            .unwrap();
-        self.gui_send
-            .send(GuiCommand::GetSelectedGroupInfo(selected_group.clone()))
             .unwrap();
     }
 
@@ -524,8 +521,7 @@ impl MangaUI {
                                 }
                                 let save_button = egui::Button::new("🖴").fill(Color32::LIGHT_GREEN);
                                 if ui.add(save_button).clicked() {
-                                    self.messenger
-                                        .save_entry(entry, self.selected_group.as_ref().unwrap());
+                                    self.messenger.save_entry(entry);
                                 }
                             });
                         });
