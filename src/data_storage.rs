@@ -317,21 +317,22 @@ impl DataStorage {
     }
 
     async fn add_image_from_clipboard(&mut self, entry: MangaEntry) {
-        let mut clipboard = arboard::Clipboard::new().unwrap();
-        let image_result = clipboard.get_image();
-        if image_result.is_err() {
-            return;
+        let mut buffer = Vec::with_capacity(500_000);
+        {
+            use clipboard_win::Getter;
+            let _clip = clipboard_win::Clipboard::new_attempts(10).expect("Open clipboard");
+            let read_bytes = clipboard_win::formats::Bitmap
+                .read_clipboard(&mut buffer)
+                .unwrap();
+            buffer.truncate(read_bytes);
         }
-        let image = image_result.unwrap();
 
-        let buffer = image::ImageBuffer::from_raw(
-            u32::try_from(image.width).unwrap(),
-            u32::try_from(image.height).unwrap(),
-            image.bytes.into_owned(),
-        )
-        .unwrap();
-        let loaded_image = image::DynamicImage::ImageRgba8(buffer);
-        self.add_image_shared(entry, loaded_image).await;
+        let image = image::io::Reader::new(std::io::Cursor::new(&buffer))
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
+        self.add_image_shared(entry, image).await;
     }
 
     async fn send_manga_entry_images(&mut self, entry_id: i64) {
