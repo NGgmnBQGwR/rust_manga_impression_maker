@@ -159,6 +159,15 @@ impl MangaUI {
             .unwrap();
     }
 
+    fn add_names_from_folder(&mut self) {
+        self.messenger
+            .gui_send
+            .send(GuiCommand::AddNamesFromFolder(
+                self.selected_group.as_ref().unwrap().clone(),
+            ))
+            .unwrap();
+    }
+
     fn refresh_manga_groups(&mut self) {
         self.messenger
             .gui_send
@@ -470,6 +479,9 @@ impl MangaUI {
                     self.manga_entries.as_ref().unwrap(),
                     self.selected_group.as_ref().unwrap(),
                 );
+            }
+            if ui.button("🗄 Add names from folder").clicked() && self.manga_entries.is_some() {
+                self.add_names_from_folder();
             }
         });
         ui.separator();

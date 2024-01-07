@@ -164,6 +164,7 @@ impl DataStorage {
                     self.send_manga_entry_images(entry.id).await;
                 }
                 GuiCommand::ExportGroup(group) => self.export_group(group).await,
+                GuiCommand::AddNamesFromFolder(group) => self.add_names_from_folder(group).await,
             }
         }
     }
@@ -184,6 +185,19 @@ impl DataStorage {
         .unwrap();
 
         self.send_selected_group(group).await;
+    }
+
+    async fn create_new_manga_entry_with_name(&mut self, group: &MangaGroup, name: &str) {
+        sqlx::query!(
+            r"INSERT INTO manga_entries(manga_group, name) VALUES(?, ?)",
+            group.id,
+            name
+        )
+        .execute(&self.db_pool)
+        .await
+        .unwrap();
+
+        self.send_selected_group(group.clone()).await;
     }
 
     async fn create_new_manga_group(&mut self) {
@@ -253,6 +267,13 @@ impl DataStorage {
         .execute(&self.db_pool)
         .await
         .unwrap();
+    }
+
+    async fn delete_manga_entry(&self, entry: MangaEntry) {
+        sqlx::query!(r"DELETE FROM manga_entries WHERE id = ?", entry.id)
+            .execute(&self.db_pool)
+            .await
+            .unwrap();
     }
 
     async fn add_image_shared(&mut self, entry: MangaEntry, image_file: image::DynamicImage) {
@@ -382,5 +403,80 @@ impl DataStorage {
         }
 
         crate::manga_group_export::MangaGroupExporter::new(group, entries).export_group();
+    }
+
+    async fn add_names_from_folder(&mut self, group: MangaGroup) {
+        let folder_name = {
+            let folder_name = rfd::FileDialog::new()
+                .set_title("Select folder to load entries from")
+                .set_directory(std::env::current_dir().unwrap())
+                .pick_folder();
+
+            if folder_name.is_none() {
+                return;
+            }
+
+            folder_name.unwrap()
+        };
+
+        let folder_entries = {
+            let mut set = std::collections::HashSet::with_capacity(100);
+            let contents = std::fs::read_dir(folder_name);
+            if contents.is_err() {
+                return;
+            }
+            for entry in contents.unwrap() {
+                if entry.is_err() {
+                    continue;
+                }
+                let entry = entry.unwrap();
+                if !entry.path().is_dir() {
+                    continue;
+                }
+                let name = entry.file_name().to_string_lossy().to_string();
+                set.insert(name);
+            }
+            set
+        };
+
+        if folder_entries.is_empty() {
+            return;
+        }
+
+        let group_entries = sqlx::query_as!(
+            MangaEntry,
+            r"SELECT * FROM manga_entries WHERE manga_group = ? ORDER BY id DESC",
+            group.id
+        )
+        .fetch_all(&self.db_pool)
+        .await
+        .unwrap();
+
+        // Removing empty entries, so that they won't get in the way
+        let mut db_entries = std::collections::HashSet::with_capacity(group_entries.len());
+        for entry in group_entries {
+            if entry.name.trim().is_empty() && entry.comment.trim().is_empty() {
+                let manga_images = sqlx::query!(
+                    r"SELECT COUNT(*) as count FROM manga_images WHERE manga = ? ORDER BY id ASC",
+                    entry.id
+                )
+                .fetch_one(&self.db_pool)
+                .await
+                .unwrap();
+
+                if manga_images.count == 0 {
+                    self.delete_manga_entry(entry).await;
+                    continue;
+                }
+            } else {
+                db_entries.insert(entry.name);
+            }
+        }
+        for missing_name in folder_entries.difference(&db_entries) {
+            self.create_new_manga_entry_with_name(&group, missing_name)
+                .await;
+        }
+
+        self.send_selected_group(group).await;
     }
 }

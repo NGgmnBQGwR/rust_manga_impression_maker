@@ -75,6 +75,7 @@ pub enum GuiCommand {
     UpdateEntryImages(MangaEntry),
     AddImageFromClipboard(MangaEntry),
     ExportGroup(MangaGroup),
+    AddNamesFromFolder(MangaGroup),
     Exit,
 }
 
