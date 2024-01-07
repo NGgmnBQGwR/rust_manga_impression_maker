@@ -1,6 +1,6 @@
 use anyhow::Context;
 use anyhow::Result as AnyResult;
-use eframe::egui::{Color32, Vec2 as EguiVec2, Stroke};
+use eframe::egui::{Color32, Stroke, Vec2 as EguiVec2};
 
 use crate::types::MangaEntry;
 use crate::types::{
@@ -405,7 +405,10 @@ impl MangaUI {
                         Color32::LIGHT_GRAY,
                     )
                 } else {
-                    ((2.0f32, Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
+                    (
+                        (2.0f32, Color32::from_rgb(0x10, 0x10, 0x10)),
+                        Color32::WHITE,
+                    )
                 };
 
                 egui::Frame::none()
@@ -546,9 +549,7 @@ impl MangaUI {
                                             entry.textures.iter(),
                                             entry.thumbnails.iter(),
                                         ) {
-                                            let image = egui::ImageButton::new(
-                                                texture,
-                                            );
+                                            let image = egui::ImageButton::new(texture);
                                             let added_image = ui.add(image).on_hover_ui(|ui| {
                                                 ui.label("Click to delete");
                                             });
