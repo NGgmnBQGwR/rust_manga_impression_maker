@@ -17,9 +17,10 @@ fn main() -> AnyResult<()> {
     dotenvy::dotenv().context(".env file not found")?;
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(EguiVec2::new(1110., 800.)),
-        max_window_size: Some(EguiVec2::new(1110., 800.)),
-        min_window_size: Some(EguiVec2::new(1110., 800.)),
+        viewport: egui::ViewportBuilder::default()
+        .with_max_inner_size(EguiVec2::new(1110., 800.))
+        .with_min_inner_size(EguiVec2::new(1110., 800.))
+        .with_inner_size(EguiVec2::new(1110., 800.)),
         ..Default::default()
     };
 

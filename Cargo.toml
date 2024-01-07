@@ -11,16 +11,16 @@ categories = ["template-engine"]
 
 [dependencies]
 sqlx = { version = "0.7", features = [ "runtime-tokio-rustls", "sqlite", "chrono" ] }
-rfd = { version = "0.11" }
-egui = { version = "0.22" }
-eframe = { version = "0.22" }
+rfd = { version = "0.12" }
+egui = { version = "0.24" }
+eframe = { version = "0.24" }
 anyhow = "1.0"
-tokio = { version = "1.29", features = ["full"] }
+tokio = { version = "1.35", features = ["full"] }
 chrono = { version = "0.4" }
 dotenvy = { version = "0.15" }
 crossbeam = { version = "0.8" }
 async-trait = { version = "0.1" }
-uuid = { version = "1.4", features = ["v4"] }
+uuid = { version = "1.6", features = ["v4"] }
 image = { version = "0.24" }
-clipboard-win = { version = "4.5" }
-handlebars = { version = "4.3" }
+clipboard-win = { version = "5.0" }
+handlebars = { version = "5.0" }

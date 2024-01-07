@@ -1,6 +1,6 @@
 use anyhow::Context;
 use anyhow::Result as AnyResult;
-use eframe::egui::{Color32, Vec2 as EguiVec2};
+use eframe::egui::{Color32, Vec2 as EguiVec2, Stroke};
 
 use crate::types::MangaEntry;
 use crate::types::{
@@ -68,9 +68,8 @@ pub struct MangaUI {
 }
 
 impl eframe::App for MangaUI {
-    fn on_close_event(&mut self) -> bool {
+    fn on_exit(&mut self, _: Option<&eframe::glow::Context>) {
         self.messenger.gui_send.send(GuiCommand::Exit).unwrap();
-        true
     }
 
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
@@ -402,17 +401,17 @@ impl MangaUI {
                     .map_or(false, |x| x.id == group.id)
                 {
                     (
-                        (2., Color32::from_rgb(0xA0, 0x10, 0x10)),
+                        (2.0f32, Color32::from_rgb(0xA0, 0x10, 0x10)),
                         Color32::LIGHT_GRAY,
                     )
                 } else {
-                    ((2., Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
+                    ((2.0f32, Color32::from_rgb(0x10, 0x10, 0x10)), Color32::WHITE)
                 };
 
                 egui::Frame::none()
                     .inner_margin(5.)
                     .outer_margin(EguiVec2::new(0., 2.))
-                    .stroke(stroke.into())
+                    .stroke(Stroke::from(stroke))
                     .fill(fill)
                     .rounding(5.)
                     .show(ui, |ui| {
@@ -483,13 +482,13 @@ impl MangaUI {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             for entry in self.manga_entries.as_mut().unwrap().iter_mut() {
-                let stroke = (2., Color32::from_rgb(0x10, 0x10, 0x10));
+                let stroke = (2.0f32, Color32::from_rgb(0x10, 0x10, 0x10));
                 let fill = Color32::LIGHT_GRAY;
 
                 egui::Frame::none()
                     .inner_margin(5.)
                     .outer_margin(EguiVec2::new(0., 2.))
-                    .stroke(stroke.into())
+                    .stroke(Stroke::from(stroke))
                     .fill(fill)
                     .rounding(5.)
                     .show(ui, |ui| {
@@ -549,7 +548,6 @@ impl MangaUI {
                                         ) {
                                             let image = egui::ImageButton::new(
                                                 texture,
-                                                texture.size_vec2(),
                                             );
                                             let added_image = ui.add(image).on_hover_ui(|ui| {
                                                 ui.label("Click to delete");
