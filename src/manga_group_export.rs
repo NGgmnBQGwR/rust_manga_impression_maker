@@ -119,7 +119,7 @@ impl<'a> MangaGroupExporter<'a> {
             .set_title("Select export destination")
             .set_directory(std::env::current_dir().unwrap())
             .add_filter("HTML file", &["html"])
-            .set_file_name(&format!("{}_{}.html", date, self.group.id))
+            .set_file_name(format!("{}_{}.html", date, self.group.id))
             .save_file();
 
         if export_filepath.is_none() {
