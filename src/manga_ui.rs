@@ -222,6 +222,9 @@ impl MangaUI {
             .size = 14.;
         cc.egui_ctx.set_style(style);
         cc.egui_ctx.set_visuals(egui::Visuals::light());
+        cc.egui_ctx.style_mut(|style| {
+            style.spacing.scroll = egui::style::ScrollStyle::solid();
+        });
 
         let backend_recv_clone = self.messenger.backend_recv.clone();
         let ctx_clone = cc.egui_ctx.clone();
