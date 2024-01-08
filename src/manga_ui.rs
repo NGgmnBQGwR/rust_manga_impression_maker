@@ -90,7 +90,8 @@ impl eframe::App for MangaUI {
             self.draw_group_delete_confirm(ctx);
         }
 
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
             ctx.set_debug_on_hover(true);
             egui::Window::new("🔧 Settings")
                 .vscroll(true)
