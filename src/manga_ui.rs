@@ -39,9 +39,9 @@ impl UiMessenger {
             .unwrap();
     }
 
-    fn add_image_from_disk(&self, entry: &MangaEntry) {
+    fn add_images_from_disk(&self, entry: &MangaEntry) {
         self.gui_send
-            .send(GuiCommand::AddImageFromDisk(entry.clone()))
+            .send(GuiCommand::AddImagesFromDisk(entry.clone()))
             .unwrap();
         self.gui_send
             .send(GuiCommand::UpdateEntryImages(entry.clone()))
@@ -546,9 +546,9 @@ impl MangaUI {
 
                         ui.horizontal_top(|ui| {
                             ui.label("Images:");
-                            let add_image_button = egui::Button::new("🗀 Add from disk");
-                            if ui.add(add_image_button).clicked() {
-                                self.messenger.add_image_from_disk(&entry.entry);
+                            let add_images_button = egui::Button::new("🗀 Add from disk");
+                            if ui.add(add_images_button).clicked() {
+                                self.messenger.add_images_from_disk(&entry.entry);
                             }
                             let paste_image_button = egui::Button::new("📋 Paste from clipboard");
                             if ui.add(paste_image_button).clicked() {

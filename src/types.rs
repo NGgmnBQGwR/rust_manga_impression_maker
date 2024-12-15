@@ -71,7 +71,7 @@ pub enum GuiCommand {
     GetSelectedGroupInfo(MangaGroup),
     SaveMangaEntry(MangaEntry),
     SaveAllMangaEntries(Vec<MangaEntry>),
-    AddImageFromDisk(MangaEntry),
+    AddImagesFromDisk(MangaEntry),
     UpdateEntryImages(MangaEntry),
     AddImageFromClipboard(MangaEntry),
     ExportGroup(MangaGroup),

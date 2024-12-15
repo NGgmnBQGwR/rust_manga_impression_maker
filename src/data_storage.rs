@@ -156,7 +156,7 @@ impl DataStorage {
                         self.save_manga_entry(entry).await;
                     }
                 }
-                GuiCommand::AddImageFromDisk(entry) => self.add_image_from_disk(entry).await,
+                GuiCommand::AddImagesFromDisk(entry) => self.add_images_from_disk(entry).await,
                 GuiCommand::AddImageFromClipboard(entry) => {
                     self.add_image_from_clipboard(entry).await;
                 }
@@ -276,7 +276,7 @@ impl DataStorage {
             .unwrap();
     }
 
-    async fn add_image_shared(&mut self, entry: MangaEntry, image_file: image::DynamicImage) {
+    async fn add_image_shared(&mut self, entry: &MangaEntry, image_file: image::DynamicImage) {
         // TODO: find a way to avoid making this query just to get group id
         let manga_group = sqlx::query!(
             r"SELECT manga_group FROM manga_entries WHERE manga_entries.id = ? LIMIT 1",
@@ -321,20 +321,23 @@ impl DataStorage {
         .unwrap();
     }
 
-    async fn add_image_from_disk(&mut self, entry: MangaEntry) {
-        let image_file_path = rfd::FileDialog::new()
+    async fn add_images_from_disk(&mut self, entry: MangaEntry) {
+        let images_file_path = rfd::FileDialog::new()
             .set_title("Select image")
             .set_directory(&self.cwd)
             .add_filter("Images", &["jpg", "jpeg", "png"])
-            .pick_file();
-        if image_file_path.is_none() {
+            .pick_files();
+
+        if images_file_path.is_none() {
             return;
         }
 
-        let file_contents = std::fs::read(image_file_path.unwrap()).unwrap();
-        let loaded_image = image::load_from_memory(&file_contents).unwrap();
+        for image_file_path in images_file_path.unwrap() {
+            let file_contents = std::fs::read(image_file_path).unwrap();
+            let loaded_image = image::load_from_memory(&file_contents).unwrap();
 
-        self.add_image_shared(entry, loaded_image).await;
+            self.add_image_shared(&entry, loaded_image).await;
+        }
     }
 
     async fn add_image_from_clipboard(&mut self, entry: MangaEntry) {
@@ -348,12 +351,12 @@ impl DataStorage {
             buffer.truncate(read_bytes);
         }
 
-        let image = image::io::Reader::new(std::io::Cursor::new(&buffer))
+        let image = image::ImageReader::new(std::io::Cursor::new(&buffer))
             .with_guessed_format()
             .unwrap()
             .decode()
             .unwrap();
-        self.add_image_shared(entry, image).await;
+        self.add_image_shared(&entry, image).await;
     }
 
     async fn send_manga_entry_images(&mut self, entry_id: i64) {
