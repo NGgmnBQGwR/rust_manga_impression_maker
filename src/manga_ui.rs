@@ -556,7 +556,7 @@ impl MangaUI {
                             }
                         });
                         egui::ScrollArea::horizontal()
-                            .id_source(format!("images_scroll_area_{}", entry.entry.id))
+                            .id_salt(format!("images_scroll_area_{}", entry.entry.id))
                             .show(ui, |ui| {
                                 egui::Grid::new(format!("grid_{}", entry.entry.id)).show(
                                     ui,

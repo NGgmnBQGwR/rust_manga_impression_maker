@@ -307,7 +307,7 @@ impl DataStorage {
                 &image_file.to_rgb8(),
                 image_file.width(),
                 image_file.height(),
-                image::ColorType::Rgb8,
+                image::ExtendedColorType::Rgb8,
             )
             .unwrap();
 

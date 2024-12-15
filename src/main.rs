@@ -43,7 +43,7 @@ fn main() -> AnyResult<()> {
     eframe::run_native(
         "Manga impression maker",
         options,
-        Box::new(|cc| Box::new(manga_ui.setup(cc))),
+        Box::new(|cc| Ok(Box::new(manga_ui.setup(cc)))),
     ).unwrap();
     backend_thread.join().unwrap();
 
