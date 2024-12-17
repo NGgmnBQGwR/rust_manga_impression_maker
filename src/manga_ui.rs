@@ -77,7 +77,6 @@ impl eframe::App for MangaUI {
 
         egui::SidePanel::left("left_panel_manga_groups")
             .resizable(false)
-            .exact_width(260.)
             .show(ctx, |ui| {
                 self.draw_manga_groups_panel(ctx, ui);
             });
@@ -214,16 +213,16 @@ impl MangaUI {
     }
 
     pub fn setup(self, cc: &eframe::CreationContext) -> Self {
-        let mut style: egui::Style = (*cc.egui_ctx.style()).clone();
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Body)
-            .unwrap()
-            .size = 14.;
-        cc.egui_ctx.set_style(style);
         cc.egui_ctx.set_visuals(egui::Visuals::light());
-        cc.egui_ctx.style_mut(|style| {
+        cc.egui_ctx.all_styles_mut(|style| {
             style.spacing.scroll = egui::style::ScrollStyle::solid();
+        });
+        cc.egui_ctx.all_styles_mut(|style| {
+            style
+                .text_styles
+                .get_mut(&egui::TextStyle::Body)
+                .unwrap()
+                .size = 14.
         });
 
         {
