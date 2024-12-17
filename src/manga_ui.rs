@@ -226,20 +226,22 @@ impl MangaUI {
             style.spacing.scroll = egui::style::ScrollStyle::solid();
         });
 
-        let backend_recv_clone = self.messenger.backend_recv.clone();
-        let ctx_clone = cc.egui_ctx.clone();
-        // Since egui only calls update() when something has changed,
-        // and we do message processing there, no messages will be processed if
-        // there's no interaction from the user.
-        // To counter this, we use a clone of receiver and every 16ms check if
-        // there are messages from the backend, in a separate thread.
-        // TODO: is it possible to replace "every 16ms" with "every frame"?
-        std::thread::spawn(move || loop {
-            std::thread::sleep(std::time::Duration::from_millis(16));
-            if !backend_recv_clone.is_empty() {
-                ctx_clone.request_repaint();
-            }
-        });
+        {
+            let backend_recv_clone = self.messenger.backend_recv.clone();
+            let ctx_clone = cc.egui_ctx.clone();
+            // Since egui only calls update() when something has changed,
+            // and we do message processing there, no messages will be processed if
+            // there's no interaction from the user.
+            // To counter this, we use a clone of receiver and every 16ms check if
+            // there are messages from the backend, in a separate thread.
+            // TODO: is it possible to replace "every 16ms" with "every frame"?
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_millis(16));
+                if !backend_recv_clone.is_empty() {
+                    ctx_clone.request_repaint();
+                }
+            });
+        }
 
         self
     }
