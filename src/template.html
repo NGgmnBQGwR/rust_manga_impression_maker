@@ -28,6 +28,9 @@
     </style>
 
     <body>
+        <div id="fragment-counter" style="position: fixed; bottom: 30px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px 10px; border-radius: 5px;">
+            Fragment: <span id="current-fragment">0</span> / <span id="total-fragments">0</span>
+        </div>
         <div class="reveal">
             <div class="slides">
                 {{sections}}
@@ -45,6 +48,21 @@ document.addEventListener('DOMContentLoaded', function() {
         slideNumber: "c/t",
         plugins: [ RevealHighlight ]
     });
+
+    function updateFragmentCounter() {
+        const current = (Reveal.getIndices().f + 2 || 0);
+        const total = Reveal.getCurrentSlide().querySelectorAll('.fragment').length;
+
+        document.getElementById('current-fragment').textContent = current;
+        document.getElementById('total-fragments').textContent = total;
+    }
+
+    // Update on fragment change
+    Reveal.addEventListener('fragmentshown', updateFragmentCounter);
+    Reveal.addEventListener('fragmenthidden', updateFragmentCounter);
+
+    // Also update on slide change
+    Reveal.addEventListener('slidechanged', updateFragmentCounter);
 });
         </script>
     </body>
