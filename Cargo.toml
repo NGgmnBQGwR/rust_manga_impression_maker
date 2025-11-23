@@ -9,7 +9,13 @@ categories = ["template-engine"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = [
+    "webserver",
+]
+
 [dependencies]
+webserver = { path = "./webserver" }
 sqlx = { version = "0.8", features = [ "runtime-tokio-rustls", "sqlite", "chrono" ] }
 rfd = { version = "0.15" }
 egui = { version = "0.33" }

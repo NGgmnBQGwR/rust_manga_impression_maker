@@ -1,0 +1,9 @@
+[package]
+name = "webserver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8.7", features = [ "ws" ] }
+tokio = "1.48"
+serde = "1.0.228"
