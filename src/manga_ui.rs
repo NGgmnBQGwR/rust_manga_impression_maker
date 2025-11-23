@@ -216,6 +216,7 @@ impl MangaUI {
         cc.egui_ctx.set_visuals(egui::Visuals::light());
         cc.egui_ctx.all_styles_mut(|style| {
             style.spacing.scroll = egui::style::ScrollStyle::solid();
+            style.spacing.scroll.bar_width = 12.;
         });
         cc.egui_ctx.all_styles_mut(|style| {
             style
