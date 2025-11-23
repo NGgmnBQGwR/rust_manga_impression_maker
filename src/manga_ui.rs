@@ -425,12 +425,12 @@ impl MangaUI {
                     )
                 };
 
-                egui::Frame::none()
+                egui::Frame::new()
                     .inner_margin(5.)
                     .outer_margin(EguiVec2::new(0., 2.))
                     .stroke(Stroke::from(stroke))
                     .fill(fill)
-                    .rounding(5.)
+                    .corner_radius(5.)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             let label = ui
@@ -505,12 +505,12 @@ impl MangaUI {
                 let stroke = (2.0f32, Color32::from_rgb(0x10, 0x10, 0x10));
                 let fill = Color32::LIGHT_GRAY;
 
-                egui::Frame::none()
+                egui::Frame::new()
                     .inner_margin(5.)
                     .outer_margin(EguiVec2::new(0., 2.))
                     .stroke(Stroke::from(stroke))
                     .fill(fill)
-                    .rounding(5.)
+                    .corner_radius(5.)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.vertical_centered_justified(|ui| {
@@ -566,7 +566,7 @@ impl MangaUI {
                                             entry.textures.iter(),
                                             entry.thumbnails.iter(),
                                         ) {
-                                            let image = egui::ImageButton::new(texture);
+                                            let image = egui::Button::image(texture);
                                             let added_image = ui.add(image).on_hover_ui(|ui| {
                                                 ui.label("Click to delete");
                                             });
