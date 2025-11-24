@@ -513,6 +513,7 @@ impl MangaUI {
                     .fill(fill)
                     .corner_radius(5.)
                     .show(ui, |ui| {
+                        ui.set_width(750.);
                         ui.horizontal(|ui| {
                             ui.vertical_centered_justified(|ui| {
                                 ui.horizontal(|ui| {
