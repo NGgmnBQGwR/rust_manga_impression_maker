@@ -28,17 +28,10 @@ fn main() -> AnyResult<()> {
     let (gui_send, gui_recv) = crossbeam::channel::bounded(100);
     let backend_thread = std::thread::spawn(move || DataStorage::start(backend_send, gui_recv));
 
-    let manga_ui = MangaUI {
-        manga_groups: Vec::new(),
-        selected_group: Option::None,
-        group_to_delete: Option::None,
-        entry_to_delete: Option::None,
-        manga_entries: Option::None,
-        messenger: UiMessenger {
+    let manga_ui = MangaUI::new(UiMessenger {
             backend_recv,
             gui_send,
-        },
-    };
+        });
 
     eframe::run_native(
         "Manga impression maker",

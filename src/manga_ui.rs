@@ -65,6 +65,21 @@ pub struct MangaUI {
     pub entry_to_delete: Option<MangaEntry>,
     pub manga_entries: Option<Vec<DisplayedMangaEntry>>,
     pub messenger: UiMessenger,
+    loading: bool,
+}
+
+impl MangaUI {
+    pub fn new(messenger: UiMessenger) -> Self {
+        Self {
+            manga_groups: Vec::new(),
+            selected_group: Option::None,
+            group_to_delete: Option::None,
+            entry_to_delete: Option::None,
+            manga_entries: Option::None,
+            messenger,
+            loading: false,
+        }
+    }
 }
 
 impl eframe::App for MangaUI {
@@ -183,6 +198,7 @@ impl MangaUI {
                 self.selected_group.clone().unwrap(),
             ))
             .unwrap();
+        self.loading = true;
     }
 
     pub async fn init_db() -> AnyResult<SqlitePool> {
@@ -316,6 +332,7 @@ impl MangaUI {
                             })
                             .collect(),
                     );
+                    self.loading = false;
                 }
                 BackendCommand::UpdateThumbnailsForMangaEntry((entry_id, images)) => {
                     if self.manga_entries.is_none() {
@@ -491,6 +508,11 @@ impl MangaUI {
             }
         });
         ui.separator();
+
+        if self.loading {
+            ui.label("Loading...");
+            return;
+        }
 
         if self.manga_entries.is_none() {
             ui.label("No entries.");
