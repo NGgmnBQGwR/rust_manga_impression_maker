@@ -18,6 +18,7 @@ use std::{
     },
     time::Duration,
 };
+use tokio::runtime::Builder;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
 
@@ -422,10 +423,16 @@ async fn broadcast_state(state: &AppState) {
 
 pub fn start_web_server(shutdown_requested: Arc<AtomicBool>, manga_entries: Vec<Manga>) {
     let state = Arc::new(RwLock::new(AppState::from_displayed(manga_entries)));
+    let rt = Builder::new_multi_thread()
+        .worker_threads(4)
+        .thread_name("webserver")
+        .enable_all()
+        .build()
+        .unwrap();
 
     // Heartbeat task: send ping every 30s
     let heartbeat_state = state.clone();
-    tokio::spawn(async move {
+    rt.spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
         loop {
             interval.tick().await;
@@ -442,7 +449,7 @@ pub fn start_web_server(shutdown_requested: Arc<AtomicBool>, manga_entries: Vec<
         .route("/image", get(image_handler))
         .with_state(state);
 
-    tokio::spawn(async move {
+    rt.block_on(async move {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await
             .unwrap();
