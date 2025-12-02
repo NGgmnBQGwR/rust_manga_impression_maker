@@ -430,10 +430,10 @@ pub fn start_web_server(shutdown_requested: Arc<AtomicBool>, manga_entries: Vec<
         .build()
         .unwrap();
 
-    // Heartbeat task: send ping every 30s
+    // Heartbeat task: send ping every 3s
     let heartbeat_state = state.clone();
     rt.spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        let mut interval = tokio::time::interval(Duration::from_secs(3));
         loop {
             interval.tick().await;
             let state = heartbeat_state.read().await;
