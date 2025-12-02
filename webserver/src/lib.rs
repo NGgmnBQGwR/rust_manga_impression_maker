@@ -89,7 +89,7 @@ impl AppState {
         ClientState {
             manga_name: manga.name.clone(),
             page_src: format!(
-                "/image?manga={}&page={}",
+                "image?manga={}&page={}",
                 self.current_manga, self.current_page
             ),
             manga_score: manga.score,
@@ -298,7 +298,8 @@ async fn home_handler(State(state): State<Arc<RwLock<AppState>>>) -> Html<String
         }}
 
         function connect() {{
-            ws = new WebSocket(`ws://${{window.location.host}}/ws`);
+            const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+            ws = new WebSocket(`ws://${{window.location.host + normalizedPath}}/ws`);
 
             ws.onopen = () => {{
                 lastMsg = "Connected";
