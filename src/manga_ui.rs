@@ -1,12 +1,14 @@
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::thread;
+use std::thread::JoinHandle;
+
 use anyhow::Context;
 use anyhow::Result as AnyResult;
 use eframe::egui::{Color32, Stroke, Vec2 as EguiVec2};
 
-use crate::types::MangaEntry;
-use crate::types::{
-    BackendChannelRecv, BackendCommand, DisplayedMangaEntry, GuiChannelSend, GuiCommand,
-    MangaGroup, MangaImage, SqlitePool,
-};
+use crate::types::{BackendChannelRecv, BackendCommand, GuiChannelSend, GuiCommand, SqlitePool};
+use shared::types::{DisplayedMangaEntry, MangaEntry, MangaGroup, MangaImage};
 
 pub struct UiMessenger {
     pub backend_recv: BackendChannelRecv,
@@ -58,6 +60,20 @@ impl UiMessenger {
     }
 }
 
+pub struct MangaWebServer {
+    pub shutdown_requested_flag: Arc<AtomicBool>,
+    pub handle: Option<JoinHandle<()>>,
+}
+
+impl MangaWebServer {
+    fn new() -> Self {
+        Self {
+            shutdown_requested_flag: Arc::new(AtomicBool::new(false)),
+            handle: None,
+        }
+    }
+}
+
 pub struct MangaUI {
     pub manga_groups: Vec<MangaGroup>,
     pub selected_group: Option<MangaGroup>,
@@ -66,6 +82,7 @@ pub struct MangaUI {
     pub manga_entries: Option<Vec<DisplayedMangaEntry>>,
     pub messenger: UiMessenger,
     loading: bool,
+    web_server: MangaWebServer,
 }
 
 impl MangaUI {
@@ -78,6 +95,7 @@ impl MangaUI {
             manga_entries: Option::None,
             messenger,
             loading: false,
+            web_server: MangaWebServer::new(),
         }
     }
 }
@@ -201,6 +219,23 @@ impl MangaUI {
         self.loading = true;
     }
 
+    fn start_web_server(&mut self) {
+        let cloned_arc = self.web_server.shutdown_requested_flag.clone();
+        let prepared_data = webserver::prepare_data(
+            &self
+                .manga_entries
+                .as_ref()
+                .expect("Tried to start server for an empty group."),
+        );
+
+        let new_thread = thread::Builder::new()
+            .spawn(|| {
+                webserver::start_web_server(cloned_arc, prepared_data);
+            })
+            .expect("Failed to start web server.");
+        self.web_server.handle = Some(new_thread);
+    }
+
     pub async fn init_db() -> AnyResult<SqlitePool> {
         // Initialize SQL connection
         let conn = sqlx::sqlite::SqliteConnectOptions::new()
@@ -251,10 +286,12 @@ impl MangaUI {
             // To counter this, we use a clone of receiver and every 16ms check if
             // there are messages from the backend, in a separate thread.
             // TODO: is it possible to replace "every 16ms" with "every frame"?
-            std::thread::spawn(move || loop {
-                std::thread::sleep(std::time::Duration::from_millis(16));
-                if !backend_recv_clone.is_empty() {
-                    ctx_clone.request_repaint();
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_millis(16));
+                    if !backend_recv_clone.is_empty() {
+                        ctx_clone.request_repaint();
+                    }
                 }
             });
         }
@@ -505,6 +542,22 @@ impl MangaUI {
             }
             if ui.button("🗄 Add names from folder").clicked() && self.manga_entries.is_some() {
                 self.add_names_from_folder();
+            }
+            if self.web_server.handle.is_none() {
+                if ui.button("☁ Share online").clicked() && self.manga_entries.is_some() {
+                    self.start_web_server();
+                }
+            } else {
+                if ui.button("❌ Stop sharing").clicked() {
+                    self.web_server
+                        .shutdown_requested_flag
+                        .store(true, std::sync::atomic::Ordering::Release);
+                    if let Some(handle) = &self.web_server.handle
+                        && handle.is_finished()
+                    {
+                        let _ = self.web_server.handle.take().unwrap().join();
+                    }
+                }
             }
         });
         ui.separator();

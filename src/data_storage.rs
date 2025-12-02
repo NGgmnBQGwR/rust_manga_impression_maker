@@ -5,10 +5,10 @@ use std::path::PathBuf;
 
 use crate::cascade_delete::CascadeDelete;
 use crate::manga_ui::MangaUI;
-use crate::types::{
-    BackendChannelSend, BackendCommand, DisplayedMangaEntry, DisplayedMangaImage, GuiChannelRecv,
-    GuiCommand, MangaEntry, MangaGroup, MangaImage, SqlitePool, THUMBNAIL_IMAGE_HEIGHT,
-    THUMBNAIL_IMAGE_WIDTH,
+use crate::types::{BackendChannelSend, BackendCommand, GuiChannelRecv, GuiCommand, SqlitePool};
+use shared::types::{
+    DisplayedMangaEntry, DisplayedMangaImage, MangaEntry, MangaGroup, MangaImage,
+    THUMBNAIL_IMAGE_HEIGHT, THUMBNAIL_IMAGE_WIDTH,
 };
 
 pub struct ImageCache {

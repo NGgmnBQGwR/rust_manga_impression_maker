@@ -1,4 +1,5 @@
-use crate::types::{MangaEntry, MangaGroup, MangaImage, SqlitePool};
+use shared::types::{MangaEntry, MangaGroup, MangaImage};
+use crate::types::SqlitePool;
 use async_trait::async_trait;
 
 #[async_trait]

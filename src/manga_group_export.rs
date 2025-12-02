@@ -1,4 +1,4 @@
-use crate::types::{MangaEntry, MangaGroup, MangaImage};
+use shared::types::{MangaEntry, MangaGroup, MangaImage};
 
 static TEMPLATE: &str = include_str!("template.html");
 

@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = { version = "0.8.7", features = [ "ws" ] }
+axum = { version = "0.8", features = [ "ws" ] }
 tokio = "1.48"
-serde = "1.0.228"
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+shared = {path = "../shared"}

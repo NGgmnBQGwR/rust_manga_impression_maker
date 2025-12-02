@@ -1,7 +1,7 @@
 [package]
 name = "manga_impression"
 version = "1.0.7"
-edition = "2021"
+edition = "2024"
 description = "A GUI to help write small impressions of something (biased towards manga)"
 license = "MIT"
 keywords = ["egui", "manga"]
@@ -11,11 +11,12 @@ categories = ["template-engine"]
 
 [workspace]
 members = [
-    "webserver",
+    "webserver", "shared",
 ]
 
 [dependencies]
 webserver = { path = "./webserver" }
+shared = { path  = "./shared" }
 sqlx = { version = "0.8", features = [ "runtime-tokio-rustls", "sqlite", "chrono" ] }
 rfd = { version = "0.15" }
 egui = { version = "0.33" }
