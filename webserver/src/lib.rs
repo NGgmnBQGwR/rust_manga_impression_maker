@@ -191,7 +191,7 @@ async fn home_handler(State(state): State<Arc<RwLock<AppState>>>) -> Html<String
             margin: 0px;
         }}
         #manga-comment {{
-            font-size: 14px;
+            font-size: 16px;
             margin-bottom: 10px;
             color: #ccc;
         }}
