@@ -58,7 +58,7 @@ pub struct Manga {
 }
 
 pub fn prepare_data(entries: &Vec<DisplayedMangaEntry>) -> Vec<Manga> {
-    entries
+    let mut transformed: Vec<Manga> = entries
         .into_iter()
         .map(|entry| Manga {
             name: entry.entry.name.clone(),
@@ -70,7 +70,9 @@ pub fn prepare_data(entries: &Vec<DisplayedMangaEntry>) -> Vec<Manga> {
                 .map(|t| t.image.path.clone())
                 .collect(),
         })
-        .collect()
+        .collect();
+    transformed.sort_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
+    transformed
 }
 
 impl AppState {
