@@ -118,9 +118,9 @@ impl AppState {
         match action {
             Action::Next => {
                 let manga = &self.mangas[self.current_manga];
-                if self.current_page < manga.page_paths.len() - 1 {
+                if self.current_page + 1 < manga.page_paths.len() {
                     self.current_page += 1;
-                } else if self.current_manga < self.mangas.len() - 1 {
+                } else if self.current_manga + 1 < self.mangas.len() {
                     self.current_manga += 1;
                     self.current_page = 0;
                 }
@@ -130,7 +130,11 @@ impl AppState {
                     self.current_page -= 1;
                 } else if self.current_manga > 0 {
                     self.current_manga -= 1;
-                    self.current_page = self.mangas[self.current_manga].page_paths.len() - 1;
+                    if self.mangas[self.current_manga].page_paths.len() > 0 {
+                        self.current_page = self.mangas[self.current_manga].page_paths.len() - 1;
+                    } else {
+                        self.current_page = 0;
+                    }
                 }
             }
         }
