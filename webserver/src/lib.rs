@@ -165,57 +165,104 @@ async fn home_handler(State(state): State<Arc<RwLock<AppState>>>) -> Html<String
             display: flex;
             flex-direction: column;
             height: 100vh;
+            overflow: hidden;
         }}
         #debug {{
             position: absolute;
+            opacity: 20%;
             top: 10px;
             left: 10px;
             font-size: 12px;
             background: rgba(0,0,0,0.7);
             padding: 5px;
             border-radius: 3px;
+            z-index: 100;
         }}
         #header {{
             text-align: center;
-            padding: 10px;
+            flex-shrink: 0;
+        }}
+        #header h2 {{
+            margin: 5px 0;
+            font-size: 28px;
+        }}
+        #manga-score {{
+            font-size: 18px;
+            margin: 0px;
+        }}
+        #manga-comment {{
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #ccc;
         }}
         #image-container {{
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 10px;
+            position: relative;
+            min-height: 0;
         }}
         #manga-img {{
+            padding-bottom: 10px;
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            pointer-events: none;
+        }}
+        .nav-arrow {{
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 33.33%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+            user-select: none;
+            z-index: 10;
+        }}
+        .nav-arrow:hover {{
+            opacity: 0.4;
+        }}
+        #prev-arrow {{
+            left: 0;
+            justify-content: flex-start;
+            padding-left: 30px;
+        }}
+        #next-arrow {{
+            right: 0;
+            justify-content: flex-end;
+            padding-right: 30px;
+        }}
+        .arrow-char {{
+            font-size: 72px;
+            color: white;
+            text-shadow: 0 0 15px rgba(0,0,0,0.8);
         }}
         #counters {{
             position: absolute;
-            bottom: 10px;
-            right: 10px;
+            bottom: 15px;
+            right: 15px;
             font-size: 14px;
-        }}
-        button {{
-            margin: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 4px;
         }}
     </style>
 </head>
 <body>
     <div id="debug">UUID: <span id="uuid">-</span><br>Last: <span id="last-msg">-</span></div>
     <div id="header">
-        <h3 id="manga-name"></h3>
+        <h2 id="manga-name"></h2>
         <div id="manga-score"></div>
         <div id="manga-comment"></div>
-        <button id="prev-btn">Previous</button>
-        <button id="next-btn">Next</button>
     </div>
     <div id="image-container">
-        <img id="manga-img" src="" alt="Manga page">
+        <img id="manga-img" src="" alt="">
+        <div class="nav-arrow" id="prev-arrow"><span class="arrow-char">‹</span></div>
+        <div class="nav-arrow" id="next-arrow"><span class="arrow-char">›</span></div>
     </div>
     <div id="counters">
         <div>Manga: <span id="manga-counter"></span></div>
@@ -232,7 +279,7 @@ async fn home_handler(State(state): State<Arc<RwLock<AppState>>>) -> Html<String
 
         function updateUI(state) {{
             document.getElementById('manga-name').textContent = state.manga_name;
-            document.getElementById('manga-score').textContent = `Score: ${{state.manga_score}}/10`;
+            document.getElementById('manga-score').textContent = `${{state.manga_score}}/10`;
             document.getElementById('manga-comment').textContent = state.manga_comment || '';
             document.getElementById('manga-img').src = state.page_src;
             document.getElementById('manga-counter').textContent = `${{state.manga_pos[0]}} / ${{state.manga_pos[1]}}`;
@@ -262,12 +309,12 @@ async fn home_handler(State(state): State<Arc<RwLock<AppState>>>) -> Html<String
             }};
         }}
 
-        document.getElementById('next-btn').onclick = () => {{
-            ws.send(JSON.stringify({{ type: 'next', uuid: uuid }}));
+        document.getElementById('prev-arrow').onclick = () => {{
+            ws.send(JSON.stringify({{ type: 'prev', uuid: uuid }}));
         }};
 
-        document.getElementById('prev-btn').onclick = () => {{
-            ws.send(JSON.stringify({{ type: 'prev', uuid: uuid }}));
+        document.getElementById('next-arrow').onclick = () => {{
+            ws.send(JSON.stringify({{ type: 'next', uuid: uuid }}));
         }};
 
         connect();
