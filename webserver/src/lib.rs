@@ -272,6 +272,17 @@ async fn home_handler(State(state): State<Arc<RwLock<AppState>>>) -> Html<String
     <script>
         const initialState = {};
         let ws = null;
+
+        if (typeof crypto.randomUUID !== 'function')
+        {{
+            crypto.randomUUID = function () {{
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {{
+                    var r = Math.random() * 16 | 0,
+                        v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                }});
+            }};
+        }}
         let uuid = crypto.randomUUID();
         let lastMsg = "-";
 
