@@ -548,14 +548,26 @@ impl MangaUI {
                     self.start_web_server();
                 }
             } else {
-                if ui.button("❌ Stop sharing").clicked() {
-                    self.web_server
-                        .shutdown_requested_flag
-                        .store(true, std::sync::atomic::Ordering::Release);
+                let is_stopping = self
+                    .web_server
+                    .shutdown_requested_flag
+                    .load(std::sync::atomic::Ordering::Acquire);
+                if is_stopping {
+                    ui.add_enabled(false, egui::Button::new("⏳ Stopping..."));
+
                     if let Some(handle) = &self.web_server.handle
                         && handle.is_finished()
                     {
                         let _ = self.web_server.handle.take().unwrap().join();
+                        self.web_server
+                            .shutdown_requested_flag
+                            .store(false, std::sync::atomic::Ordering::Release);
+                    }
+                } else {
+                    if ui.button("❌ Stop sharing").clicked() {
+                        self.web_server
+                            .shutdown_requested_flag
+                            .store(true, std::sync::atomic::Ordering::Release);
                     }
                 }
             }
