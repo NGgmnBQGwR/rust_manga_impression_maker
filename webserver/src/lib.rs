@@ -423,6 +423,10 @@ async fn broadcast_state(state: &AppState) {
 
 pub fn start_web_server(shutdown_requested: Arc<AtomicBool>, manga_entries: Vec<Manga>) {
     let state = Arc::new(RwLock::new(AppState::from_displayed(manga_entries)));
+    if let Err(e) = tracing_subscriber::fmt::try_init() {
+        dbg!("Failed to install tracing fmt:", e);
+    }
+
     let rt = Builder::new_multi_thread()
         .worker_threads(4)
         .thread_name("webserver")
